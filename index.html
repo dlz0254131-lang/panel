@@ -80,7 +80,7 @@ function 提示(s) { var e = $('提示'); e.textContent = s; e.classList.add('�
 
 /* fetch 呼叫：credentials:'omit' 不帶 Google cookie，避開多帳號登入被擋 */
 var 對照 = { 面板_資料: 'data', 面板_改設定: 'setting', 面板_調點: 'points', 面板_成員: 'member', 面板_任務: 'task' };
-function 呼叫(函式, 參數, 成功, 失敗) {
+function 呼叫(函式, 參數, 成功, 失敗, 重試) {
   function 錯(m) { 提示('❌ ' + m); }
   var 網 = API + '?p=api&a=' + 對照[函式] + '&t=' + encodeURIComponent(通行碼) + '&q=' + encodeURIComponent(JSON.stringify(參數));
   var 控 = window.AbortController ? new AbortController() : null;
@@ -89,7 +89,7 @@ function 呼叫(函式, 參數, 成功, 失敗) {
     .then(function (r) { return r.text(); })
     .then(function (txt) {
       clearTimeout(計);
-      var r; try { r = JSON.parse(txt); } catch (e) { var 摘 = txt.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160); throw new Error('伺服器回應異常：' + (摘 || '（空白）')); }
+      var r; try { r = JSON.parse(txt); } catch (e) { if (!重試) { 呼叫(函式, 參數, 成功, 失敗, true); return; } var 摘 = txt.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160); throw new Error('伺服器回應異常：' + (摘 || '（空白）')); }
       if (r.ok) 成功 && 成功(r.v); else (失敗 || 錯)(r.e);
     })
     .catch(function (e) { clearTimeout(計); (失敗 || 錯)(e.name === 'AbortError' ? '連線逾時，請重試' : (e.message || '連線失敗')); });
