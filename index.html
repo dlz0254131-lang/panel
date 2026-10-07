@@ -59,7 +59,7 @@
   <button data-頁="設定">設定</button>
   <button data-頁="紀錄">紀錄</button>
 </nav>
-<main id="內容"><div class="空">載入中…</div></main>
+<main id="內容"><div class="空">載入中…（第一次約 5~15 秒）</div></main>
 
 <div class="遮" id="遮"><div class="窗" id="窗"></div></div>
 <div class="提示" id="提示"></div>
@@ -78,19 +78,21 @@ function $(id) { return document.getElementById(id); }
 function 跳脫(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
 function 提示(s) { var e = $('提示'); e.textContent = s; e.classList.add('顯'); setTimeout(function () { e.classList.remove('顯'); }, 2500); }
 
-/* JSONP 呼叫（不靠 google.script.run，免 Google 登入） */
+/* fetch 呼叫：credentials:'omit' 不帶 Google cookie，避開多帳號登入被擋 */
 var 對照 = { 面板_資料: 'data', 面板_改設定: 'setting', 面板_調點: 'points', 面板_成員: 'member', 面板_任務: 'task' };
 function 呼叫(函式, 參數, 成功, 失敗) {
-  var cb = 'cb' + (++序) + '_' + Date.now();
-  var 標 = document.createElement('script');
-  var 計 = setTimeout(function () { 清(); (失敗 || 錯)('連線逾時，請重試'); }, 30000);
-  function 清() { clearTimeout(計); delete window[cb]; if (標.parentNode) 標.parentNode.removeChild(標); }
   function 錯(m) { 提示('❌ ' + m); }
-  window[cb] = function (r) { 清(); if (r.ok) 成功 && 成功(r.v); else (失敗 || 錯)(r.e); };
-  標.onerror = function () { 清(); (失敗 || 錯)('連線失敗，請重試'); };
-  標.src = API + '?p=api&a=' + 對照[函式] + '&t=' + encodeURIComponent(通行碼) +
-          '&q=' + encodeURIComponent(JSON.stringify(參數)) + '&cb=' + cb;
-  document.body.appendChild(標);
+  var 網 = API + '?p=api&a=' + 對照[函式] + '&t=' + encodeURIComponent(通行碼) + '&q=' + encodeURIComponent(JSON.stringify(參數));
+  var 控 = window.AbortController ? new AbortController() : null;
+  var 計 = setTimeout(function () { if (控) 控.abort(); }, 60000);
+  fetch(網, { credentials: 'omit', redirect: 'follow', signal: 控 ? 控.signal : undefined })
+    .then(function (r) { return r.text(); })
+    .then(function (txt) {
+      clearTimeout(計);
+      var r; try { r = JSON.parse(txt); } catch (e) { throw new Error('伺服器回應異常'); }
+      if (r.ok) 成功 && 成功(r.v); else (失敗 || 錯)(r.e);
+    })
+    .catch(function (e) { clearTimeout(計); (失敗 || 錯)(e.name === 'AbortError' ? '連線逾時，請重試' : (e.message || '連線失敗')); });
 }
 
 function 載入() {
