@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>管理面板</title>
+<style>
+  :root { --主: #F9A825; --深: #333; --淺: #f6f6f6; --線: #e5e5e5; --藍: #1E88E5; --紅: #E53935; --綠: #43A047; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif; color: var(--深); background: var(--淺); font-size: 15px; }
+  header { background: var(--主); color: #fff; padding: 14px 16px; position: sticky; top: 0; z-index: 5; }
+  header h1 { margin: 0; font-size: 18px; }
+  header small { opacity: .85; }
+  nav { display: flex; background: #fff; border-bottom: 1px solid var(--線); position: sticky; top: 52px; z-index: 4; overflow-x: auto; }
+  nav button { flex: 1; min-width: 72px; padding: 12px 6px; border: 0; background: none; font-size: 14px; color: #777; border-bottom: 3px solid transparent; }
+  nav button.on { color: var(--深); border-bottom-color: var(--主); font-weight: 600; }
+  main { padding: 12px; max-width: 900px; margin: 0 auto; }
+  .卡 { background: #fff; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+  .格 { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+  .數 { font-size: 26px; font-weight: 700; }
+  .標 { color: #888; font-size: 13px; }
+  .列 { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--線); }
+  .列:last-child { border-bottom: 0; }
+  .列 .主 { flex: 1; min-width: 0; }
+  .列 .副 { color: #888; font-size: 12px; }
+  .徽 { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 8px; background: #eee; color: #666; margin-left: 4px; }
+  .徽.管 { background: #FFF3E0; color: #E65100; }
+  .徽.待 { background: #FFEBEE; color: var(--紅); }
+  button.鈕 { border: 1px solid var(--線); background: #fff; border-radius: 6px; padding: 6px 10px; font-size: 13px; }
+  button.主鈕 { background: var(--主); color: #fff; border-color: var(--主); }
+  button.紅鈕 { color: var(--紅); }
+  input, select { font-size: 15px; padding: 7px 8px; border: 1px solid var(--線); border-radius: 6px; width: 100%; }
+  input[type=checkbox] { width: 22px; height: 22px; }
+  .搜 { margin-bottom: 10px; }
+  h3 { margin: 16px 0 6px; font-size: 14px; color: #888; }
+  .設值 { width: 110px; flex: none; }
+  .自訂 { color: var(--藍); font-size: 11px; }
+  .提示 { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #323232; color: #fff; padding: 10px 16px; border-radius: 8px; font-size: 14px; opacity: 0; transition: .3s; pointer-events: none; max-width: 90%; }
+  .提示.顯 { opacity: 1; }
+  .遮 { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: none; align-items: flex-end; justify-content: center; z-index: 10; }
+  .遮.顯 { display: flex; }
+  .窗 { background: #fff; width: 100%; max-width: 480px; border-radius: 14px 14px 0 0; padding: 16px; }
+  .窗 label { display: block; margin: 10px 0 4px; color: #666; font-size: 13px; }
+  .窗 .鈕列 { display: flex; gap: 8px; margin-top: 14px; }
+  .窗 .鈕列 button { flex: 1; padding: 10px; }
+  .空 { text-align: center; color: #aaa; padding: 30px 0; }
+  .錯 { background: #FFEBEE; color: var(--紅); padding: 20px; border-radius: 10px; text-align: center; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  td { padding: 6px 4px; border-bottom: 1px solid var(--線); vertical-align: top; }
+</style>
+</head>
+<body>
+<header><h1 id="組織">管理面板</h1><small id="我"></small></header>
+<nav id="分頁">
+  <button data-頁="總覽" class="on">總覽</button>
+  <button data-頁="成員">成員</button>
+  <button data-頁="任務">任務</button>
+  <button data-頁="設定">設定</button>
+  <button data-頁="紀錄">紀錄</button>
+</nav>
+<main id="內容"><div class="空">載入中…</div></main>
+
+<div class="遮" id="遮"><div class="窗" id="窗"></div></div>
+<div class="提示" id="提示"></div>
+
+<script>
+/* 靜態版：參數放在網址 # 後面（不會送到任何伺服器） */
+var 參 = {};
+location.hash.replace(/^#/, '').split('&').forEach(function (kv) { var i = kv.indexOf('='); if (i > 0) 參[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1)); });
+var 通行碼 = 參.t || '';
+var API = 參.api || '';
+if (通行碼) history.replaceState(null, '', location.pathname);   // 網址列不留通行碼
+var 序 = 0;
+var D = null, 頁 = '總覽', 搜 = '';
+
+function $(id) { return document.getElementById(id); }
+function 跳脫(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function 提示(s) { var e = $('提示'); e.textContent = s; e.classList.add('顯'); setTimeout(function () { e.classList.remove('顯'); }, 2500); }
+
+/* JSONP 呼叫（不靠 google.script.run，免 Google 登入） */
+var 對照 = { 面板_資料: 'data', 面板_改設定: 'setting', 面板_調點: 'points', 面板_成員: 'member', 面板_任務: 'task' };
+function 呼叫(函式, 參數, 成功, 失敗) {
+  var cb = 'cb' + (++序) + '_' + Date.now();
+  var 標 = document.createElement('script');
+  var 計 = setTimeout(function () { 清(); (失敗 || 錯)('連線逾時，請重試'); }, 30000);
+  function 清() { clearTimeout(計); delete window[cb]; if (標.parentNode) 標.parentNode.removeChild(標); }
+  function 錯(m) { 提示('❌ ' + m); }
+  window[cb] = function (r) { 清(); if (r.ok) 成功 && 成功(r.v); else (失敗 || 錯)(r.e); };
+  標.onerror = function () { 清(); (失敗 || 錯)('連線失敗，請重試'); };
+  標.src = API + '?p=api&a=' + 對照[函式] + '&t=' + encodeURIComponent(通行碼) +
+          '&q=' + encodeURIComponent(JSON.stringify(參數)) + '&cb=' + cb;
+  document.body.appendChild(標);
+}
+
+function 載入() {
+  呼叫('面板_資料', [], function (d) { D = d; $('組織').textContent = d.組織 + '｜管理面板'; $('我').textContent = '登入：' + d.我; 畫(); });
+}
+
+function 重載(訊息) { if (訊息) 提示(訊息); 載入(); }
+
+document.querySelectorAll('nav button').forEach(function (b) {
+  b.onclick = function () {
+    document.querySelectorAll('nav button').forEach(function (x) { x.classList.remove('on'); });
+    b.classList.add('on'); 頁 = b.getAttribute('data-頁'); 搜 = ''; 畫();
+  };
+});
+
+function 畫() {
+  if (!D) return;
+  var h = { 總覽: 畫總覽, 成員: 畫成員, 任務: 畫任務, 設定: 畫設定, 紀錄: 畫紀錄 }[頁]();
+  $('內容').innerHTML = h;
+  var s = $('搜尋'); if (s) { s.value = 搜; s.oninput = function () { 搜 = s.value; var p = s.selectionStart; 畫(); var n = $('搜尋'); n.focus(); n.setSelectionRange(p, p); }; }
+}
+
+function 畫總覽() {
+  var o = D.總覽, n = D.點名;
+  function 格(v, 標, 跳) { return '<div class="卡"' + (跳 ? ' onclick="去(\'' + 跳 + '\')" style="cursor:pointer"' : '') + '><div class="數">' + v + '</div><div class="標">' + 標 + '</div></div>'; }
+  return '<div class="格">' + 格(o.成員, '成員', '成員') + 格(o.待核准, '待核准', '成員') + 格(o.待審核, '待審核任務', '任務') +
+    格(o.進行中, '進行中任務', '任務') + 格('+' + o.本月發出, '本月發出' + n) + 格(o.本月回收, '本月回收' + n) + '</div>' +
+    '<h3>點數前 5 名</h3><div class="卡">' + D.成員.slice(0, 5).map(function (m, i) {
+      return '<div class="列"><div class="主">' + (i + 1) + '. ' + 跳脫(m.名字) + '</div><div>' + m.點數 + ' ' + 跳脫(n) + '</div></div>';
+    }).join('') + '</div>';
+}
+
+function 去(p) { document.querySelector('nav button[data-頁="' + p + '"]').click(); }
+
+function 畫成員() {
+  var 列 = D.成員.filter(function (m) { return !搜 || m.名字.indexOf(搜) >= 0; });
+  var 待 = 列.filter(function (m) { return m.狀態 === '待核准'; }), 正 = 列.filter(function (m) { return m.狀態 !== '待核准'; });
+  var h = '<input id="搜尋" class="搜" placeholder="搜尋名字">';
+  if (待.length) h += '<h3>待核准</h3><div class="卡">' + 待.map(function (m) {
+    return '<div class="列"><div class="主">' + 跳脫(m.名字) + '<div class="副">申請 ' + m.加入 + '</div></div>' +
+      '<button class="鈕 主鈕" onclick="成員(\'成員核准\',\'' + m.u + '\')">核准</button><button class="鈕 紅鈕" onclick="成員(\'成員停用\',\'' + m.u + '\',\'拒絕 ' + 跳脫(m.名字) + '？\')">拒絕</button></div>';
+  }).join('') + '</div>';
+  h += '<h3>成員（' + 正.length + '）</h3><div class="卡">' + (正.length ? 正.map(function (m) {
+    return '<div class="列"><div class="主">' + 跳脫(m.名字) + (m.角色 === '管理員' ? '<span class="徽 管">管理員</span>' : '') +
+      '<div class="副">' + m.點數 + ' ' + 跳脫(D.點名) + (m.優先卡 ? '｜優先卡 ' + m.優先卡 : '') + '｜加入 ' + m.加入 + '</div></div>' +
+      '<button class="鈕" onclick="調點窗(\'' + m.u + '\')">調點</button><button class="鈕" onclick="成員選單(\'' + m.u + '\')">⋯</button></div>';
+  }).join('') : '<div class="空">沒有符合的成員</div>') + '</div>';
+  return h;
+}
+
+function 找員(u) { return D.成員.filter(function (m) { return m.u === u; })[0]; }
+
+function 成員(動作, u, 問) {
+  if (問 && !confirm(問)) return;
+  呼叫('面板_成員', [動作, u], 重載);
+  關窗();
+}
+
+function 成員選單(u) {
+  var m = 找員(u);
+  var 升 = m.角色 === '管理員' ? ['成員降級', '降為使用者'] : ['成員升級', '升為管理員'];
+  開窗('<b>' + 跳脫(m.名字) + '</b>' +
+    '<div class="鈕列"><button class="鈕" onclick="成員(\'' + 升[0] + '\',\'' + u + '\',\'' + 升[1] + '：' + 跳脫(m.名字) + '？\')">' + 升[1] + '</button></div>' +
+    '<div class="鈕列"><button class="鈕 紅鈕" onclick="成員(\'成員停用\',\'' + u + '\',\'停用 ' + 跳脫(m.名字) + '？停用後他不能再使用。\')">停用</button></div>' +
+    '<div class="鈕列"><button class="鈕" onclick="關窗()">取消</button></div>');
+}
+
+function 調點窗(u) {
+  var m = 找員(u);
+  開窗('<b>調整 ' + 跳脫(m.名字) + '</b><div class="副">目前 ' + m.點數 + ' ' + 跳脫(D.點名) + '｜優先卡 ' + m.優先卡 + '</div>' +
+    '<label>項目</label><select id="調資產"><option value="點數">' + 跳脫(D.點名) + '</option><option value="優先卡">優先卡</option></select>' +
+    '<label>數量（扣點打負數，例如 -5）</label><input id="調數" type="number" inputmode="numeric" placeholder="5">' +
+    '<label>原因（會顯示在對方明細）</label><input id="調因" list="原因們" placeholder="活動獎勵">' +
+    '<datalist id="原因們"><option>活動獎勵</option><option>補償</option><option>更正錯誤</option><option>違規扣點</option></datalist>' +
+    '<div class="鈕列"><button class="鈕" onclick="關窗()">取消</button><button class="鈕 主鈕" onclick="送調點(\'' + u + '\', event)">確認調整</button></div>');
+  setTimeout(function () { $('調數').focus(); }, 50);
+}
+
+function 送調點(u, ev) {
+  var n = $('調數').value, 因 = $('調因').value, r = $('調資產').value;
+  if (!n || !因) { 提示('數量和原因都要填'); return; }
+  var b = (ev || window.event).target; b.disabled = true; b.textContent = '處理中…';
+  呼叫('面板_調點', [u, r, n, 因], function (x) { 關窗(); 重載('✅ ' + x); });
+}
+
+function 畫任務() {
+  var 列 = D.任務.filter(function (t) { return !搜 || t.內容.indexOf(搜) >= 0 || String(t.編號).indexOf(搜) >= 0; });
+  var 組 = { '待審核': [], '執行中': [], '開放': [] };
+  列.forEach(function (t) { (組[t.狀態] = 組[t.狀態] || []).push(t); });
+  var h = '<input id="搜尋" class="搜" placeholder="搜尋內容或編號">';
+  ['待審核', '執行中', '開放'].forEach(function (s) {
+    var g = 組[s]; if (!g.length) return;
+    h += '<h3>' + s + '（' + g.length + '）</h3><div class="卡">' + g.map(function (t) {
+      var 鈕 = s === '待審核'
+        ? '<button class="鈕 主鈕" onclick="任務(\'通過\',' + t.編號 + ')">通過</button><button class="鈕" onclick="任務(\'退回\',' + t.編號 + ')">退回</button>'
+        : '<button class="鈕 紅鈕" onclick="任務(\'刪除\',' + t.編號 + ',\'刪除 #' + t.編號 + '？出資會全額退回\')">刪除</button>';
+      return '<div class="列"><div class="主">#' + t.編號 + ' ' + 跳脫(t.內容) + (t.類型 !== '一般' ? '<span class="徽">' + 跳脫(t.類型) + '</span>' : '') +
+        '<div class="副">' + 跳脫(t.發起人) + (t.認領人 ? ' → ' + 跳脫(t.認領人) : '') + '｜報酬 ' + t.報酬 + '｜截止 ' + t.截止 + (t.送出 ? '｜送出 ' + t.送出 : '') + '</div></div>' + 鈕 + '</div>';
+    }).join('') + '</div>';
+  });
+  if (!列.length) h += '<div class="卡 空">目前沒有進行中的任務</div>';
+  return h;
+}
+
+function 任務(動作, 編號, 問) {
+  if (問 && !confirm(問)) return;
+  呼叫('面板_任務', [動作, String(編號)], 重載);
+}
+
+function 畫設定() {
+  var 類 = {};
+  D.設定.forEach(function (s) { (類[s.類] = 類[s.類] || []).push(s); });
+  var h = '<input id="搜尋" class="搜" placeholder="搜尋設定">';
+  Object.keys(類).forEach(function (k) {
+    var g = 類[k].filter(function (s) { return !搜 || s.鍵.indexOf(搜) >= 0 || s.說明.indexOf(搜) >= 0; });
+    if (!g.length) return;
+    h += '<h3>' + 跳脫(k) + '</h3><div class="卡">' + g.map(function (s) {
+      var 控;
+      if (s.型別 === '是否') 控 = '<input type="checkbox" ' + (s.值 ? 'checked' : '') + ' onchange="改(\'' + s.鍵 + '\', this.checked ? \'是\' : \'否\', this)">';
+      else if (s.選項) 控 = '<select class="設值" onchange="改(\'' + s.鍵 + '\', this.value, this)">' + s.選項.map(function (o) { return '<option' + (o === s.值 ? ' selected' : '') + '>' + 跳脫(o) + '</option>'; }).join('') + '</select>';
+      else 控 = '<input class="設值" ' + (s.型別 === '數字' ? 'type="number" step="any" inputmode="decimal"' : '') + ' value="' + 跳脫(s.值) + '" onchange="改(\'' + s.鍵 + '\', this.value, this)">';
+      var 副 = [];
+      if (s.型別 === '數字') 副.push(s.最小 + '~' + s.最大);
+      副.push('預設 ' + (s.型別 === '是否' ? (s.預設 ? '開' : '關') : s.預設));
+      if (s.說明) 副.push(s.說明);
+      return '<div class="列"><div class="主">' + 跳脫(s.名) + (s.自訂 ? ' <span class="自訂">自訂 · <a href="#" onclick="改(\'' + s.鍵 + '\',\'\',null);return false">恢復預設</a></span>' : '') +
+        '<div class="副">' + 跳脫(副.join('｜')) + '</div></div>' + 控 + '</div>';
+    }).join('') + '</div>';
+  });
+  return h;
+}
+
+function 改(鍵, 值, 元件) {
+  if (元件) 元件.disabled = true;
+  呼叫('面板_改設定', [鍵, 值], function (x) { 重載('✅ ' + x); });
+  setTimeout(function () { if (元件) 元件.disabled = false; }, 3000);
+}
+
+function 畫紀錄() {
+  var 列 = D.紀錄.filter(function (r) { return !搜 || (r.誰 + r.動作 + r.對象 + r.後).indexOf(搜) >= 0; });
+  return '<input id="搜尋" class="搜" placeholder="搜尋（人名、動作…）"><div class="卡"><table>' + (列.length ? 列.map(function (r) {
+    return '<tr><td style="white-space:nowrap;color:#888">' + 跳脫(r.時間) + '</td><td><b>' + 跳脫(r.誰) + '</b> ' + 跳脫(r.動作) +
+      (r.對象 ? ' ' + 跳脫(r.對象) : '') + (r.後 ? '<div class="副">' + (r.前 ? 跳脫(r.前) + ' → ' : '') + 跳脫(r.後) + (r.結果 && r.結果 !== '成功' ? '（' + 跳脫(r.結果) + '）' : '') + '</div>' : '') + '</td></tr>';
+  }).join('') : '<tr><td class="空">沒有紀錄</td></tr>') + '</table><div class="副" style="margin-top:8px">顯示最近 100 筆</div></div>';
+}
+
+function 開窗(h) { $('窗').innerHTML = h; $('遮').classList.add('顯'); }
+function 關窗() { $('遮').classList.remove('顯'); }
+$('遮').onclick = function (e) { if (e.target === $('遮')) 關窗(); };
+
+if (!通行碼) $('內容').innerHTML = '<div class="錯">請從 LINE 打「管理 面板」取得連結。</div>';
+else 呼叫('面板_資料', [], function (d) { D = d; $('組織').textContent = d.組織 + '｜管理面板'; $('我').textContent = '登入：' + d.我; 畫(); },
+  function (m) { $('內容').innerHTML = '<div class="錯">' + 跳脫(m) + '</div>'; });
+</script>
+</body>
+</html>
