@@ -89,7 +89,7 @@ function 呼叫(函式, 參數, 成功, 失敗) {
     .then(function (r) { return r.text(); })
     .then(function (txt) {
       clearTimeout(計);
-      var r; try { r = JSON.parse(txt); } catch (e) { throw new Error('伺服器回應異常'); }
+      var r; try { r = JSON.parse(txt); } catch (e) { var 摘 = txt.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160); throw new Error('伺服器回應異常：' + (摘 || '（空白）')); }
       if (r.ok) 成功 && 成功(r.v); else (失敗 || 錯)(r.e);
     })
     .catch(function (e) { clearTimeout(計); (失敗 || 錯)(e.name === 'AbortError' ? '連線逾時，請重試' : (e.message || '連線失敗')); });
