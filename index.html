@@ -187,8 +187,9 @@ function 畫任務() {
   ['待審核', '執行中', '開放'].forEach(function (s) {
     var g = 組[s]; if (!g.length) return;
     h += '<h3>' + s + '（' + g.length + '）</h3><div class="卡">' + g.map(function (t) {
+      var 鍵 = t.u ? '\'' + t.編號 + ':' + t.u + '\'' : t.編號;
       var 鈕 = s === '待審核'
-        ? '<button class="鈕 主鈕" onclick="任務(\'通過\',' + t.編號 + ')">通過</button><button class="鈕" onclick="任務(\'退回\',' + t.編號 + ')">退回</button>'
+        ? '<button class="鈕 主鈕" onclick="任務(\'通過\',' + 鍵 + ')">通過</button><button class="鈕" onclick="任務(\'退回\',' + 鍵 + ')">退回</button>'
         : '<button class="鈕 紅鈕" onclick="任務(\'刪除\',' + t.編號 + ',\'刪除 #' + t.編號 + '？出資會全額退回\')">刪除</button>';
       return '<div class="列"><div class="主">#' + t.編號 + ' ' + 跳脫(t.內容) + (t.類型 !== '一般' ? '<span class="徽">' + 跳脫(t.類型) + '</span>' : '') +
         '<div class="副">' + 跳脫(t.發起人) + (t.認領人 ? ' → ' + 跳脫(t.認領人) : '') + '｜報酬 ' + t.報酬 + '｜截止 ' + t.截止 + (t.送出 ? '｜送出 ' + t.送出 : '') + '</div></div>' + 鈕 + '</div>';
