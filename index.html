@@ -35,14 +35,15 @@
   .標 { color:var(--text-2); font-size:14px; line-height:20px; }
   .列 { display:flex; align-items:center; gap:var(--s2); min-height:64px; padding:var(--s3) 0; border-bottom:1px solid var(--border); }
   .列:last-child { border-bottom:0; }
-  .列 .主 { flex:1; min-width:0; }
+  .列 .主 { flex:1; min-width:0; overflow-wrap:anywhere; }
+  .列 > button { flex:none; white-space:nowrap; }
   .列 .副, .副 { color:var(--text-3); font-size:14px; line-height:20px; }
   /* 狀態標籤：一律「符號＋文字」；字色用 primary-dark，不用 primary */
   .徽 { display:inline-flex; align-items:center; gap:4px; font-size:14px; line-height:20px; font-weight:700; padding:2px 10px; border-radius:var(--r-pill); background:var(--muted-bg); color:var(--text-2); margin-left:var(--s1); white-space:nowrap; flex:none; vertical-align:middle; }
   .徽.進 { background:var(--primary-light); color:var(--primary-dark); }
   .徽.待 { background:var(--accent-light); color:var(--accent-text); }
   .徽.結 { background:var(--muted-bg); color:var(--text-2); }
-  .徽.錯 { background:var(--danger-light); color:var(--danger); }
+  .徽.危 { background:var(--danger-light); color:var(--danger); }
   .徽.管 { background:var(--primary-light); color:var(--primary-dark); }
   button.鈕 { font:inherit; font-size:16px; font-weight:700; min-height:44px; padding:0 var(--s4); border:1px solid var(--border); background:var(--surface); color:var(--primary-dark); border-radius:var(--r-sm); cursor:pointer; }
   button.鈕:hover { border-color:var(--primary-dark); }
@@ -82,7 +83,8 @@
   /* 桌面（≥1024px）：側欄 240px、KPI 4 欄、內容左右 32px */
   @media (min-width:1024px) {
     body { display:flex; min-height:100vh; }
-    .側 { position:sticky; top:0; height:100vh; width:var(--side); flex:none; padding:var(--s6) var(--s4); overflow-y:auto; }
+    .側 { position:relative; align-self:stretch; min-height:100vh; width:var(--side); flex:none; padding:0; }
+    .側內 { position:sticky; top:0; max-height:100vh; overflow-y:auto; padding:var(--s6) var(--s4); }
     .側 .logo { display:block; }
     nav { flex-direction:column; overflow:visible; padding:var(--s6) 0 0; }
     nav button { padding:var(--s2) var(--s4); min-height:44px; }
@@ -93,7 +95,7 @@
 </style>
 </head>
 <body>
-<aside class="側">
+<aside class="側"><div class="側內">
 <span class="logo"><img src="logo_horizontal.png" alt="任務點 MISSION POINTS"></span>
 <h1 id="組織">管理面板</h1><small id="我"></small>
 <nav id="分頁">
@@ -104,7 +106,7 @@
   <button data-頁="設定">設定</button>
   <button data-頁="紀錄">紀錄</button>
 </nav>
-</aside>
+</div></aside>
 <main id="內容"><div class="空">載入中…（第一次約 5~15 秒）</div></main>
 
 <div class="遮" id="遮"><div class="窗" id="窗"></div></div>
@@ -179,7 +181,7 @@ function 畫成員() {
   var 待 = 列.filter(function (m) { return m.狀態 === '待核准'; }), 正 = 列.filter(function (m) { return m.狀態 !== '待核准'; });
   var h = '<input id="搜尋" class="搜" placeholder="搜尋名字">';
   if (待.length) h += '<h3>待核准</h3><div class="卡">' + 待.map(function (m) {
-    return '<div class="列"><div class="主">' + 跳脫(m.名字) + '<span class="徽 錯">! 待核准</span><div class="副">申請 ' + m.加入 + '</div></div>' +
+    return '<div class="列"><div class="主">' + 跳脫(m.名字) + '<span class="徽 危">! 待核准</span><div class="副">申請 ' + m.加入 + '</div></div>' +
       '<button class="鈕 主鈕" onclick="成員(\'成員核准\',\'' + m.u + '\')">核准</button><button class="鈕 紅鈕" onclick="成員(\'成員停用\',\'' + m.u + '\',\'拒絕 ' + 跳脫(m.名字) + '？\')">拒絕</button></div>';
   }).join('') + '</div>';
   var 勾數 = Object.keys(勾).filter(function (k) { return 勾[k]; }).length;
