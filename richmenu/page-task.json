@@ -1,0 +1,109 @@
+{
+  "size": {
+    "width": 2500,
+    "height": 1686
+  },
+  "selected": true,
+  "name": "page-task",
+  "chatBarText": "任務與點數",
+  "areas": [
+    {
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1250,
+        "height": 200
+      },
+      "action": {
+        "type": "richmenuswitch",
+        "richMenuAliasId": "page-task",
+        "data": "switch=page-task"
+      }
+    },
+    {
+      "bounds": {
+        "x": 1250,
+        "y": 0,
+        "width": 1250,
+        "height": 200
+      },
+      "action": {
+        "type": "richmenuswitch",
+        "richMenuAliasId": "page-points",
+        "data": "switch=page-points"
+      }
+    },
+    {
+      "bounds": {
+        "x": 0,
+        "y": 200,
+        "width": 833,
+        "height": 743
+      },
+      "action": {
+        "type": "message",
+        "text": "任務牆"
+      }
+    },
+    {
+      "bounds": {
+        "x": 833,
+        "y": 200,
+        "width": 833,
+        "height": 743
+      },
+      "action": {
+        "type": "message",
+        "text": "我的任務"
+      }
+    },
+    {
+      "bounds": {
+        "x": 1666,
+        "y": 200,
+        "width": 834,
+        "height": 743
+      },
+      "action": {
+        "type": "message",
+        "text": "發佈任務"
+      }
+    },
+    {
+      "bounds": {
+        "x": 0,
+        "y": 943,
+        "width": 833,
+        "height": 743
+      },
+      "action": {
+        "type": "message",
+        "text": "每日任務"
+      }
+    },
+    {
+      "bounds": {
+        "x": 833,
+        "y": 943,
+        "width": 833,
+        "height": 743
+      },
+      "action": {
+        "type": "message",
+        "text": "系統任務"
+      }
+    },
+    {
+      "bounds": {
+        "x": 1666,
+        "y": 943,
+        "width": 834,
+        "height": 743
+      },
+      "action": {
+        "type": "message",
+        "text": "說明"
+      }
+    }
+  ]
+}

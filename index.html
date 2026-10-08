@@ -129,7 +129,7 @@ function 跳脫(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, funct
 function 提示(s) { var e = $('提示'); e.textContent = s; e.classList.add('顯'); setTimeout(function () { e.classList.remove('顯'); }, 2500); }
 
 /* fetch 呼叫：credentials:'omit' 不帶 Google cookie，避開多帳號登入被擋 */
-var 對照 = { 面板_資料: 'data', 面板_改設定: 'setting', 面板_調點: 'points', 面板_成員: 'member', 面板_任務: 'task', 面板_統計: 'stats', 面板_批次: 'batch', 面板_權限: 'perms', 面板_改權限: 'setperm', 面板_設主: 'setmaster', 面板_體檢: 'health' };
+var 對照 = { 面板_資料: 'data', 面板_改設定: 'setting', 面板_調點: 'points', 面板_成員: 'member', 面板_任務: 'task', 面板_統計: 'stats', 面板_批次: 'batch', 面板_權限: 'perms', 面板_改權限: 'setperm', 面板_設主: 'setmaster', 面板_體檢: 'health', 面板_池儲值: 'pool' };
 var 最後網址 = '';
 function 呼叫(函式, 參數, 成功, 失敗, 重試) {
   function 錯(m) { 提示('❌ ' + m); }
@@ -184,11 +184,23 @@ function 畫() {
 function 畫總覽() {
   var o = D.總覽, n = D.點名;
   function 格(v, 標, 跳) { return '<div class="卡"' + (跳 ? ' onclick="去(\'' + 跳 + '\')" style="cursor:pointer"' : '') + '><div class="數">' + v + '</div><div class="標">' + 標 + '</div></div>'; }
-  return '<div class="格">' + 格(o.成員, '成員', '成員') + 格(o.待核准, '待核准', '成員') + 格(o.待審核, '待審核任務', '任務') +
+  var 池 = o.池 || null, 千 = function (v) { return String(Math.round(Number(v) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
+  var 池區 = 池 ? '<div class="卡" style="margin-bottom:10px"><div class="列"><div class="主">💰 系統點數剩餘</div><div class="數" style="font-size:22px;color:' +
+    (池.餘額 <= 0 ? '#B3261E' : 池.餘額 < 池.警告線 ? '#8A5A1F' : '#3D6153') + '">' + 千(池.餘額) + '</div></div>' +
+    '<div class="副">本月發出 ' + 千(池.本月發出) + '｜累計儲值 ' + 千(池.累計儲值) + (池.餘額 <= 0 ? '｜⛔ 已用完，發點功能暫停，請聯絡開發者儲值' : 池.餘額 < 池.警告線 ? '｜⚠️ 偏低' : '') + '</div>' +
+    (D.身分 === '開發者' ? '<div class="鈕列"><button class="鈕 主鈕" onclick="池儲(10000)">+10,000</button><button class="鈕 主鈕" onclick="池儲(100000)">+100,000</button><button class="鈕 主鈕" onclick="池儲(1000000)">+1,000,000</button><button class="鈕" onclick="池儲(0)">自訂／扣回</button></div>' : '') + '</div>' : '';
+  var 池明 = (D.池明細 && D.池明細.length) ? '<h3>系統點數明細</h3><div class="卡">' + D.池明細.slice(0, 15).map(function (r) {
+    return '<div class="列"><div class="主">' + 跳脫(r.時間) + ' ' + 跳脫(r.類別) + '<div class="副">' + 跳脫(r.說明.slice(0, 30)) + '</div></div><div>' + (r.數量 > 0 ? '+' : '') + 千(r.數量) + '</div></div>'; }).join('') + '</div>' : '';
+  return 池區 + '<div class="格">' + 格(o.成員, '成員', '成員') + 格(o.待核准, '待核准', '成員') + 格(o.待審核, '待審核任務', '任務') +
     格(o.進行中, '進行中任務', '任務') + 格('+' + o.本月發出, '本月發出' + n) + 格(o.本月回收, '本月回收' + n) + '</div>' +
     '<h3>點數前 5 名</h3><div class="卡">' + D.成員.slice(0, 5).map(function (m, i) {
       return '<div class="列"><div class="主">' + (i + 1) + '. ' + 跳脫(m.名字) + '</div><div>' + m.點數 + ' ' + 跳脫(n) + '</div></div>';
-    }).join('') + '</div>';
+    }).join('') + '</div>' + 池明;
+}
+function 池儲(n) {
+  if (!n) { var v = prompt('輸入儲值數量（扣回請加負號，例如 -5000）'); if (!v) return; n = Number(String(v).replace(/[,\s]/g, '')); if (!n) return 提示('❌ 請輸入整數'); }
+  if (!confirm((n > 0 ? '儲值 +' : '扣回 ') + n + '？')) return;
+  呼叫('面板_池儲值', [n], function (x) { 提示('✅ ' + x); 重載(); }, function (e) { 提示('❌ ' + e); });
 }
 
 function 去(p) { document.querySelector('nav button[data-頁="' + p + '"]').click(); }
