@@ -105,6 +105,8 @@
   <button data-頁="統計">統計</button>
   <button data-頁="設定">設定</button>
   <button data-頁="紀錄">紀錄</button>
+  <button data-頁="權限" style="display:none">👑 權限</button>
+  <button data-頁="開發者" style="display:none">🛠 開發者</button>
 </nav>
 </div></aside>
 <main id="內容"><div class="空">載入中…（第一次約 5~15 秒）</div></main>
@@ -127,7 +129,7 @@ function 跳脫(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, funct
 function 提示(s) { var e = $('提示'); e.textContent = s; e.classList.add('顯'); setTimeout(function () { e.classList.remove('顯'); }, 2500); }
 
 /* fetch 呼叫：credentials:'omit' 不帶 Google cookie，避開多帳號登入被擋 */
-var 對照 = { 面板_資料: 'data', 面板_改設定: 'setting', 面板_調點: 'points', 面板_成員: 'member', 面板_任務: 'task', 面板_統計: 'stats', 面板_批次: 'batch' };
+var 對照 = { 面板_資料: 'data', 面板_改設定: 'setting', 面板_調點: 'points', 面板_成員: 'member', 面板_任務: 'task', 面板_統計: 'stats', 面板_批次: 'batch', 面板_權限: 'perms', 面板_改權限: 'setperm', 面板_設主: 'setmaster' };
 var 最後網址 = '';
 function 呼叫(函式, 參數, 成功, 失敗, 重試) {
   function 錯(m) { 提示('❌ ' + m); }
@@ -145,7 +147,22 @@ function 呼叫(函式, 參數, 成功, 失敗, 重試) {
 }
 
 function 載入() {
-  呼叫('面板_資料', [], function (d) { D = d; $('組織').textContent = d.組織 + '｜管理面板'; $('我').textContent = '登入：' + d.我; 畫(); });
+  呼叫('面板_資料', [], function (d) {
+    D = d; $('組織').textContent = d.組織 + '｜管理面板';
+    $('我').textContent = '登入：' + d.我 + (d.身分 && d.身分 !== '管理員' ? '（' + d.身分 + '）' : '');
+    套權限(); 畫();
+  });
+}
+
+function 有(k) { return !D || !D.權限 || D.權限.indexOf(k) >= 0; }
+/* 依權限顯示分頁：沒權限的頁不顯示 */
+function 套權限() {
+  var 需 = { 成員: '成員', 統計: '查詢', 設定: '設定', 紀錄: '查詢' };
+  document.querySelectorAll('nav button').forEach(function (b) {
+    var p = b.getAttribute('data-頁');
+    var 顯 = p === '權限' ? (D.身分 === '開發者' || D.身分 === '主管理員') : p === '開發者' ? D.身分 === '開發者' : (!需[p] || 有(需[p]));
+    b.style.display = 顯 ? '' : 'none';
+  });
 }
 
 function 重載(訊息) { if (訊息) 提示(訊息); 載入(); }
@@ -159,7 +176,7 @@ document.querySelectorAll('nav button').forEach(function (b) {
 
 function 畫() {
   if (!D) return;
-  var h = { 總覽: 畫總覽, 成員: 畫成員, 任務: 畫任務, 統計: 畫統計, 設定: 畫設定, 紀錄: 畫紀錄 }[頁]();
+  var h = { 總覽: 畫總覽, 成員: 畫成員, 任務: 畫任務, 統計: 畫統計, 設定: 畫設定, 紀錄: 畫紀錄, 權限: 畫權限, 開發者: 畫開發者 }[頁]();
   $('內容').innerHTML = '<h2 class="頁標">' + 頁 + '</h2>' + h;
   var s = $('搜尋'); if (s) { s.value = 搜; s.oninput = function () { 搜 = s.value; var p = s.selectionStart; 畫(); var n = $('搜尋'); n.focus(); n.setSelectionRange(p, p); }; }
 }
@@ -185,13 +202,13 @@ function 畫成員() {
       '<button class="鈕 主鈕" onclick="成員(\'成員核准\',\'' + m.u + '\')">核准</button><button class="鈕 紅鈕" onclick="成員(\'成員停用\',\'' + m.u + '\',\'拒絕 ' + 跳脫(m.名字) + '？\')">拒絕</button></div>';
   }).join('') + '</div>';
   var 勾數 = Object.keys(勾).filter(function (k) { return 勾[k]; }).length;
-  h += '<div class="鈕列" style="justify-content:space-between;align-items:center"><span class="副">勾選後可一次調多人</span>' +
+  if (有('點數')) h += '<div class="鈕列" style="justify-content:space-between;align-items:center"><span class="副">勾選後可一次調多人</span>' +
     '<span><button class="鈕" onclick="全勾(' + (勾數 ? 'false' : 'true') + ')">' + (勾數 ? '全部取消' : '全選') + '</button>' +
     '<button class="鈕 主鈕" onclick="批次窗()"' + (勾數 ? '' : ' disabled') + '>👥 批次調點（' + 勾數 + '）</button></span></div>';
   h += '<h3>成員（' + 正.length + '）</h3><div class="卡">' + (正.length ? 正.map(function (m) {
-    return '<div class="列"><input type="checkbox" style="width:auto;margin-right:8px" ' + (勾[m.u] ? 'checked ' : '') + 'onclick="勾選(\'' + m.u + '\', this.checked)"><div class="主">' + 跳脫(m.名字) + (m.角色 === '管理員' ? '<span class="徽 管">★ 管理員</span>' : '') + (m.狀態 === '停用' ? '<span class="徽 結">○ 已停用</span>' : '') +
+    return '<div class="列">' + (有('點數') ? '<input type="checkbox" style="width:auto;margin-right:8px" ' + (勾[m.u] ? 'checked ' : '') + 'onclick="勾選(\'' + m.u + '\', this.checked)">' : '') + '<div class="主">' + 跳脫(m.名字) + (m.角色 === '管理員' ? '<span class="徽 管">★ 管理員</span>' : '') + (m.狀態 === '停用' ? '<span class="徽 結">○ 已停用</span>' : '') +
       '<div class="副">' + m.點數 + ' ' + 跳脫(D.點名) + (m.優先卡 ? '｜優先卡 ' + m.優先卡 : '') + '｜加入 ' + m.加入 + '</div></div>' +
-      '<button class="鈕" onclick="調點窗(\'' + m.u + '\')">調點</button><button class="鈕" onclick="成員選單(\'' + m.u + '\')">⋯</button></div>';
+      (有('點數') ? '<button class="鈕" onclick="調點窗(\'' + m.u + '\')">調點</button>' : '') + (有('成員') ? '<button class="鈕" onclick="成員選單(\'' + m.u + '\')">⋯</button>' : '') + '</div>';
   }).join('') : '<div class="空">沒有符合的成員</div>') + '</div>';
   return h;
 }
@@ -254,6 +271,52 @@ function 畫統計() {
     '</table><div class="副" style="margin-top:6px">「○ 沉睡」＝超過 14 天沒有任何動作</div></div>';
   return h;
 }
+var P = null, P載 = false;
+function 載權限_() { if (!P && !P載) { P載 = true; 呼叫('面板_權限', [], function (x) { P = x; P載 = false; 畫(); }, function (e) { P載 = false; 提示('❌ ' + e); }); } }
+function 畫權限() {
+  載權限_();
+  if (!P) return '<div class="空">載入中…</div>';
+  var h = '<div class="卡"><div class="副">' + (P.開發者 ? '🛠 開發者：可以設定任何人，包含主管理員（主管理員的權限＝他底下所有人的上限）'
+    : '👑 你可以設定其他管理員，但只能給你自己有的權限（🔒＝你沒有這項）') + '</div></div>';
+  P.人.forEach(function (m) {
+    h += '<h3>' + 跳脫(m.名字) + (m.主 ? '<span class="徽 管">👑 主管理員</span>' : '') + '</h3><div class="卡">';
+    P.群組.forEach(function (k) {
+      var 開 = m.權限.indexOf(k) >= 0, 可 = m.可改 && P.可給.indexOf(k) >= 0;
+      h += '<div class="列"><div class="主">' + (可 ? '' : '🔒 ') + k + '<div class="副">' + 跳脫(P.說明[k]) + '</div></div>' +
+        (可 ? '<button class="鈕' + (開 ? ' 主鈕' : '') + '" onclick="切權限(\'' + m.u + '\',\'' + k + '\')">' + (開 ? '✅ 開' : '⬜ 關') + '</button>'
+             : '<span class="副">' + (開 ? '✅' : '⬜') + '</span>') + '</div>';
+    });
+    if (P.開發者 && !m.主) h += '<div class="鈕列"><button class="鈕" onclick="設主(\'' + m.u + '\')">👑 設為主管理員</button></div>';
+    if (!m.可改) h += '<div class="副" style="margin-top:6px">' + (m.主 ? '主管理員的權限由開發者設定' : '你不能修改這位（例如你自己）') + '</div>';
+    h += '</div>';
+  });
+  return h;
+}
+function 切權限(u, k) {
+  var m = P.人.filter(function (x) { return x.u === u; })[0];
+  var 新 = m.權限.indexOf(k) >= 0 ? m.權限.filter(function (x) { return x !== k; }) : m.權限.concat([k]);
+  呼叫('面板_改權限', [u, 新], function (x) { 提示('✅ ' + x); P = null; 畫(); });
+}
+function 設主(u) {
+  var m = P.人.filter(function (x) { return x.u === u; })[0];
+  if (!confirm('把 ' + m.名字 + ' 設為主管理員？原主管理員會變成一般管理員。')) return;
+  呼叫('面板_設主', [u], function (x) { 提示('✅ ' + x); P = null; 畫(); });
+}
+function 畫開發者() {
+  載權限_();
+  var 主 = P && P.人.filter(function (m) { return m.主; })[0];
+  var o = D.總覽;
+  return '<div class="卡"><b>🛠 開發者模式</b><div class="副">只有開發者看得到這一頁</div></div>' +
+    '<h3>組織</h3><div class="卡"><div class="列"><div class="主">名稱</div><div>' + 跳脫(D.組織) + '</div></div>' +
+    '<div class="列"><div class="主">成員</div><div>' + o.成員 + ' 人</div></div>' +
+    '<div class="列"><div class="主">主管理員</div><div>' + (主 ? 跳脫(主.名字) : (P ? '（無）' : '…')) + '</div></div>' +
+    '<div class="列"><div class="主">管理員</div><div>' + (P ? P.人.length + ' 人' : '…') + '</div></div>' +
+    '<div class="列"><div class="主">伺服器回應</div><div>' + (D.耗時 / 1000).toFixed(1) + ' 秒' + (D.快取 ? '（快取）' : '') + '</div></div></div>' +
+    '<h3>管理員權限一覽</h3><div class="卡">' + (P ? P.人.map(function (m) {
+      return '<div class="列"><div class="主">' + (m.主 ? '👑 ' : '') + 跳脫(m.名字) + '<div class="副">' + (m.權限.length === P.群組.length ? '全部' : (m.權限.join('、') || '無')) + '</div></div>' +
+        '<button class="鈕" onclick="去(\'權限\')">設定</button></div>'; }).join('') : '<div class="空">載入中…</div>') + '</div>';
+}
+
 function 換區(r) { S區 = r; S = null; 畫(); }
 
 function 找員(u) { return D.成員.filter(function (m) { return m.u === u; })[0]; }
@@ -302,8 +365,8 @@ function 畫任務() {
     h += '<h3>' + s + '（' + g.length + '）</h3><div class="卡">' + g.map(function (t) {
       var 鍵 = t.u ? '\'' + t.編號 + ':' + t.u + '\'' : t.編號;
       var 鈕 = s === '待審核'
-        ? '<button class="鈕 主鈕" onclick="任務(\'通過\',' + 鍵 + ')">通過</button><button class="鈕" onclick="任務(\'退回\',' + 鍵 + ')">退回</button>'
-        : '<button class="鈕 紅鈕" onclick="任務(\'刪除\',' + t.編號 + ',\'刪除 #' + t.編號 + '？出資會全額退回\')">刪除</button>';
+        ? !有('審核') ? '' : '<button class="鈕 主鈕" onclick="任務(\'通過\',' + 鍵 + ')">通過</button><button class="鈕" onclick="任務(\'退回\',' + 鍵 + ')">退回</button>'
+        : !有('任務') ? '' : '<button class="鈕 紅鈕" onclick="任務(\'刪除\',' + t.編號 + ',\'刪除 #' + t.編號 + '？出資會全額退回\')">刪除</button>';
       return '<div class="列"><div class="主">#' + t.編號 + ' ' + 跳脫(t.內容) + (t.類型 !== '一般' ? '<span class="徽">' + 跳脫(t.類型) + '</span>' : '') +
         徽 + '<div class="副">' + 跳脫(t.發起人) + (t.認領人 ? ' → ' + 跳脫(t.認領人) : '') + '｜報酬 ' + t.報酬 + '｜截止 ' + t.截止 + (t.送出 ? '｜送出 ' + t.送出 : '') + '</div></div>' + 鈕 + '</div>';
     }).join('') + '</div>';
