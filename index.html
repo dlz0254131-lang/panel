@@ -129,7 +129,7 @@ function 跳脫(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, funct
 function 提示(s) { var e = $('提示'); e.textContent = s; e.classList.add('顯'); setTimeout(function () { e.classList.remove('顯'); }, 2500); }
 
 /* fetch 呼叫：credentials:'omit' 不帶 Google cookie，避開多帳號登入被擋 */
-var 對照 = { 面板_資料: 'data', 面板_改設定: 'setting', 面板_調點: 'points', 面板_成員: 'member', 面板_任務: 'task', 面板_統計: 'stats', 面板_批次: 'batch', 面板_權限: 'perms', 面板_改權限: 'setperm', 面板_設主: 'setmaster' };
+var 對照 = { 面板_資料: 'data', 面板_改設定: 'setting', 面板_調點: 'points', 面板_成員: 'member', 面板_任務: 'task', 面板_統計: 'stats', 面板_批次: 'batch', 面板_權限: 'perms', 面板_改權限: 'setperm', 面板_設主: 'setmaster', 面板_體檢: 'health' };
 var 最後網址 = '';
 function 呼叫(函式, 參數, 成功, 失敗, 重試) {
   function 錯(m) { 提示('❌ ' + m); }
@@ -302,6 +302,33 @@ function 設主(u) {
   if (!confirm('把 ' + m.名字 + ' 設為主管理員？原主管理員會變成一般管理員。')) return;
   呼叫('面板_設主', [u], function (x) { 提示('✅ ' + x); P = null; 畫(); });
 }
+var H = null, H載 = false, H範 = '';
+function 載體檢_(立即) {
+  if (H載) return; H載 = true;
+  呼叫('面板_體檢', [!!立即, H範], function (x) { H = x; H載 = false; 畫(); if (立即) 提示('✅ 體檢完成'); }, function (e) { H載 = false; 提示('❌ ' + e); });
+}
+function 畫體檢區() {
+  if (!H) { 載體檢_(false); return '<h3>🩺 體檢與錯誤</h3><div class="卡"><div class="空">載入中…</div></div>'; }
+  var h = '<h3>🩺 每日體檢 <span class="副">' + (H.體檢時間 ? new Date(H.體檢時間).toLocaleString('zh-TW', { hour12: false }) : '尚未執行') + '</span></h3><div class="卡">';
+  if (!H.體檢) h += '<div class="空">尚未體檢（每天 08:00 自動跑）</div>';
+  else H.體檢.forEach(function (x) {
+    h += '<div class="列" style="display:block"><div class="主">' + (x.問題.length ? '⚠️ ' : '✅ ') + 跳脫(x.代號) + ' ' + 跳脫(x.名稱 || '') + '</div>' +
+      (x.問題.length ? '<div class="副">' + x.問題.map(跳脫).join('<br>') + '</div>' : '') + '</div>';
+  });
+  h += '<div class="鈕列"><button class="鈕 主鈕" onclick="載體檢_(true)">' + (H載 ? '體檢中…' : '🩺 立即體檢') + '</button></div></div>';
+  h += '<h3>🚨 最近錯誤 <span class="副">' + 跳脫(H.範圍) + '｜72 小時</span></h3><div class="鈕列">' +
+    '<button class="鈕' + (H範 ? '' : ' 主鈕') + '" onclick="換錯範(\'\')">這個客戶</button><button class="鈕' + (H範 ? ' 主鈕' : '') + '" onclick="換錯範(\'全部\')">全部客戶</button></div>';
+  if (H.分組.length) h += '<div class="卡"><div class="副">24 小時最多</div>' + H.分組.map(function (g) {
+    return '<div class="列"><div class="主">' + 跳脫(g.位置) + '</div><div>' + g.次數 + '</div></div>'; }).join('') + '</div>';
+  h += '<div class="卡">' + (H.錯誤.length ? H.錯誤.map(function (r) {
+    return '<div class="列" style="display:block;cursor:pointer" onclick="this.querySelector(\'.詳\').style.display=this.querySelector(\'.詳\').style.display?\'\':\'none\'">' +
+      '<div style="display:flex;justify-content:space-between"><span class="主">' + 跳脫(r.位置) + '</span><span class="副">' + 跳脫(r.時間) + (H範 ? ' ' + 跳脫(r.組織) : '') + '</span></div>' +
+      '<div class="副">' + 跳脫(r.訊息) + '</div><div class="詳 副" style="display:none;word-break:break-all;margin-top:4px">' + 跳脫(r.內容 || '（無內容）') + '</div></div>';
+  }).join('') : '<div class="空">72 小時內沒有錯誤 🎉</div>') + '</div>';
+  return h;
+}
+function 換錯範(v) { H範 = v; H = null; 畫(); }
+
 function 畫開發者() {
   載權限_();
   var 主 = P && P.人.filter(function (m) { return m.主; })[0];
@@ -314,7 +341,7 @@ function 畫開發者() {
     '<div class="列"><div class="主">伺服器回應</div><div>' + (D.耗時 / 1000).toFixed(1) + ' 秒' + (D.快取 ? '（快取）' : '') + '</div></div></div>' +
     '<h3>管理員權限一覽</h3><div class="卡">' + (P ? P.人.map(function (m) {
       return '<div class="列"><div class="主">' + (m.主 ? '👑 ' : '') + 跳脫(m.名字) + '<div class="副">' + (m.權限.length === P.群組.length ? '全部' : (m.權限.join('、') || '無')) + '</div></div>' +
-        '<button class="鈕" onclick="去(\'權限\')">設定</button></div>'; }).join('') : '<div class="空">載入中…</div>') + '</div>';
+        '<button class="鈕" onclick="去(\'權限\')">設定</button></div>'; }).join('') : '<div class="空">載入中…</div>') + '</div>' + 畫體檢區();
 }
 
 function 換區(r) { S區 = r; S = null; 畫(); }
