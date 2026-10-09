@@ -125,7 +125,7 @@ var 通行碼 = 參.t || '';
 var API = 參.api || '';
 if (通行碼) history.replaceState(null, '', location.pathname);   // 網址列不留通行碼
 var 序 = 0;
-var D = null, 頁 = '總覽', 搜 = '', S = null, S區 = '本月', S載 = false, 勾 = {};
+var D = null, 頁 = '總覽', 搜 = '', S = null, S區 = '本月', S載 = false, 勾 = {}, 搶勾 = {};
 
 function $(id) { return document.getElementById(id); }
 function 跳脫(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -133,7 +133,7 @@ function 提示(s) { var e = $('提示'); e.textContent = s; e.classList.add('�
 
 /* fetch 呼叫：credentials:'omit' 不帶 Google cookie，避開多帳號登入被擋 */
 var 對照 = { 面板_資料: 'data', 面板_改設定: 'setting', 面板_調點: 'points', 面板_成員: 'member', 面板_任務: 'task', 面板_統計: 'stats', 面板_批次: 'batch', 面板_權限: 'perms', 面板_改權限: 'setperm', 面板_設主: 'setmaster', 面板_體檢: 'health', 面板_池儲值: 'pool',
-  面板_商店: 'shop', 面板_公告: 'announce', 面板_匯出: 'export', 面板_邀請: 'invite' };
+  面板_商店: 'shop', 面板_公告: 'announce', 面板_匯出: 'export', 面板_邀請: 'invite', 面板_系統: 'sys', 面板_週期: 'cycle', 面板_搶開: 'grab' };
 var 最後網址 = '';
 function 呼叫(函式, 參數, 成功, 失敗, 重試) {
   function 錯(m) { 提示('❌ ' + m); }
@@ -528,6 +528,17 @@ function 畫功能() {
   var h = '<h3>📢 發公告</h3><div class="卡">' +
     (有('公告') ? '<label>公告內容（最多 1000 字，會發到所有已綁定群組）</label><textarea id="公告文" rows="4" style="width:100%;font:inherit;padding:8px;border:1px solid var(--border);border-radius:var(--r-sm)"></textarea>' +
       '<div class="鈕列"><button class="鈕 主鈕" onclick="送公告(this)">發送公告</button></div>' : '<div class="空">你沒有「公告」權限</div>') + '</div>';
+  h += '<h3>⭐ 系統任務</h3><div class="卡">' + (有('任務') ?
+    '<div class="列"><div class="主">發佈系統任務<div class="副">多人可領、有名額；完成後由管理員審核（依設定）</div></div><button class="鈕 主鈕" onclick="系發窗()">發佈</button></div>'
+    : '<div class="空">你沒有「任務」權限</div>') + '</div>';
+  h += '<h3>📅 每日／每週任務</h3><div class="卡">' + (D.週期 && D.週期.length ? D.週期.map(function (x) {
+    return '<div class="列"><div class="主">' + 跳脫(x.代號) + ' ' + 跳脫(x.類型) + '｜' + 跳脫(x.內容) + (x.狀態 === '啟用' ? '<span class="徽 進">● 啟用</span>' : '<span class="徽 結">○ ' + 跳脫(x.狀態) + '</span>') +
+      '<div class="副">報酬 ' + x.報酬 + (x.名額 ? '｜名額 ' + x.名額 : '') + '｜上次產生 ' + (x.最後產生 || '無') + '</div></div>' +
+      (有('任務') ? '<button class="鈕" onclick="週動(\'切換\',\'' + x.代號 + '\')">' + (x.狀態 === '啟用' ? '停用' : '啟用') + '</button><button class="鈕 紅鈕" onclick="週動(\'刪除\',\'' + x.代號 + '\',\'刪除 ' + x.代號 + '？\')">刪除</button>' : '') + '</div>';
+  }).join('') : '<div class="空">還沒有週期任務</div>') +
+    (有('任務') ? '<div class="鈕列"><button class="鈕 主鈕" onclick="週期窗()">＋ 新增每日／每週任務</button></div>' : '') + '</div>';
+  h += 畫搶區();
+  if (D.額度) h += '<h3>📊 推播額度</h3><div class="卡"><div class="列"><div class="主">本月已用</div><div>' + D.額度.已用 + ' 則' + (D.額度.上限 === null ? '（不限）' : '／' + D.額度.上限) + (D.額度.用盡 ? ' ⛔ 已用完' : '') + '</div></div></div>';
   h += '<h3>🛠 工具</h3><div class="卡">' +
     (有('成員') ? '<div class="列"><div class="主">產生管理員邀請碼<div class="副">24 小時內有效、只能用一次</div></div><button class="鈕" onclick="邀碼(this)">產生</button></div>' : '') +
     (有('點數') ? '<div class="列"><div class="主">批次調點<div class="副">到「成員」頁勾選多人後一次調整</div></div><button class="鈕" onclick="去(\'成員\')">前往</button></div>' : '') +
@@ -546,6 +557,55 @@ function 邀碼(b) {
   b.disabled = true; b.textContent = '產生中…';
   呼叫('面板_邀請', [], function (x) { 開窗('<b>管理員邀請碼</b><div class="副" style="word-break:break-all;margin:8px 0">' + 跳脫(x) + '</div><div class="鈕列"><button class="鈕" onclick="關窗()">關閉</button></div>'); },
     function (e) { b.disabled = false; b.textContent = '產生'; 提示('❌ ' + e); });
+}
+function 畫搶區() {
+  if (!有('搶任務')) return '<h3>🎯 搶任務</h3><div class="卡"><div class="空">你沒有「搶任務」權限</div></div>';
+  var 開 = D.任務.filter(function (t) { return t.狀態 === '開放' && t.類型 === '一般'; });
+  var h = '<h3>🎯 搶任務</h3><div class="卡"><div class="副">勾選要開放的任務（只列開放中、還沒人認領的）</div>';
+  h += 開.length ? 開.map(function (t) {
+    return '<div class="列"><div class="主">#' + t.編號 + ' ' + 跳脫(t.內容) + '<div class="副">報酬 ' + t.報酬 + '｜截止 ' + t.截止 + '</div></div>' +
+      '<input type="checkbox" style="width:auto" ' + (搶勾[t.編號] ? 'checked ' : '') + ' onclick="搶勾選(' + t.編號 + ', this.checked)"></div>';
+  }).join('') : '<div class="空">目前沒有可開放的任務</div>';
+  h += '<label>方式</label><select id="搶模"><option value="抽籤">抽籤</option><option value="先搶先贏">先搶先贏</option></select>' +
+    '<label>報名秒數（至少 120 秒）</label><input id="搶秒" type="number" inputmode="numeric" value="120">' +
+    '<div class="鈕列"><button class="鈕 主鈕" onclick="送搶開(this)">開放一輪</button></div>' +
+    '<div class="副">開放後會公告到群組；時間到自動開獎。</div></div>';
+  return h;
+}
+function 搶勾選(編號, v) { 搶勾[編號] = v; 畫(); }
+function 送搶開(b) {
+  var 選 = Object.keys(搶勾).filter(function (k) { return 搶勾[k]; });
+  if (!選.length) return 提示('請先勾選任務');
+  var 秒 = Number($('搶秒').value), 模 = $('搶模').value;
+  if (!confirm('開放一輪搶任務（' + 模 + '，' + 秒 + ' 秒）？會公告到群組。')) return;
+  b.disabled = true; b.textContent = '開放中…';
+  呼叫('面板_搶開', [{ 任務: 選, 秒: 秒, 模式: 模 }], function (x) { 搶勾 = {}; 重載('✅ ' + x); }, function (e) { b.disabled = false; b.textContent = '開放一輪'; });
+}
+function 系發窗() {
+  開窗('<b>發佈系統任務</b><label>內容</label><input id="系內容">' +
+    '<label>每人報酬</label><input id="系酬" type="number" inputmode="numeric">' +
+    '<label>名額（0＝不限）</label><input id="系額" type="number" inputmode="numeric" value="0">' +
+    '<label>截止日（YYYY-MM-DD，留空＝預設）</label><input id="系截">' +
+    '<div class="鈕列"><button class="鈕" onclick="關窗()">取消</button><button class="鈕 主鈕" onclick="送系發()">發佈</button></div>');
+}
+function 送系發() {
+  呼叫('面板_系統', [{ 內容: $('系內容').value, 報酬: $('系酬').value, 名額: $('系額').value, 截止: $('系截').value }],
+    function (x) { 關窗(); 重載('✅ ' + x); });
+}
+function 週期窗() {
+  開窗('<b>新增每日／每週任務</b><label>類型</label><select id="週型"><option value="每日">每日</option><option value="每週">每週</option></select>' +
+    '<label>內容</label><input id="週容">' +
+    '<label>報酬</label><input id="週酬" type="number" inputmode="numeric">' +
+    '<label>名額（0＝不限）</label><input id="週額" type="number" inputmode="numeric" value="0">' +
+    '<div class="鈕列"><button class="鈕" onclick="關窗()">取消</button><button class="鈕 主鈕" onclick="送週期()">新增</button></div>');
+}
+function 送週期() {
+  呼叫('面板_週期', ['新增', { 類型: $('週型').value, 內容: $('週容').value, 報酬: $('週酬').value, 名額: $('週額').value }],
+    function (x) { 關窗(); 重載('✅ ' + x); });
+}
+function 週動(動作, 代號, 問) {
+  if (問 && !confirm(問)) return;
+  呼叫('面板_週期', [動作, { 代號: 代號 }], function (x) { 重載('✅ ' + x); });
 }
 function 匯出_(b) {
   b.disabled = true; b.textContent = '匯出中…';
