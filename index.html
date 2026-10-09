@@ -102,6 +102,9 @@
   <button data-頁="總覽" class="on">總覽</button>
   <button data-頁="成員">成員</button>
   <button data-頁="任務">任務</button>
+  <button data-頁="審核" style="display:none">審核</button>
+  <button data-頁="商品" style="display:none">商品</button>
+  <button data-頁="功能" style="display:none">功能</button>
   <button data-頁="統計">統計</button>
   <button data-頁="設定">設定</button>
   <button data-頁="紀錄">紀錄</button>
@@ -129,7 +132,8 @@ function 跳脫(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, funct
 function 提示(s) { var e = $('提示'); e.textContent = s; e.classList.add('顯'); setTimeout(function () { e.classList.remove('顯'); }, 2500); }
 
 /* fetch 呼叫：credentials:'omit' 不帶 Google cookie，避開多帳號登入被擋 */
-var 對照 = { 面板_資料: 'data', 面板_改設定: 'setting', 面板_調點: 'points', 面板_成員: 'member', 面板_任務: 'task', 面板_統計: 'stats', 面板_批次: 'batch', 面板_權限: 'perms', 面板_改權限: 'setperm', 面板_設主: 'setmaster', 面板_體檢: 'health', 面板_池儲值: 'pool' };
+var 對照 = { 面板_資料: 'data', 面板_改設定: 'setting', 面板_調點: 'points', 面板_成員: 'member', 面板_任務: 'task', 面板_統計: 'stats', 面板_批次: 'batch', 面板_權限: 'perms', 面板_改權限: 'setperm', 面板_設主: 'setmaster', 面板_體檢: 'health', 面板_池儲值: 'pool',
+  面板_商店: 'shop', 面板_公告: 'announce', 面板_匯出: 'export', 面板_邀請: 'invite' };
 var 最後網址 = '';
 function 呼叫(函式, 參數, 成功, 失敗, 重試) {
   function 錯(m) { 提示('❌ ' + m); }
@@ -157,10 +161,14 @@ function 載入() {
 function 有(k) { return !D || !D.權限 || D.權限.indexOf(k) >= 0; }
 /* 依權限顯示分頁：沒權限的頁不顯示 */
 function 套權限() {
-  var 需 = { 成員: '成員', 統計: '查詢', 設定: '設定', 紀錄: '查詢' };
+  var 需 = { 成員: '成員', 統計: '查詢', 設定: '設定', 紀錄: '查詢', 商品: '商店' };
   document.querySelectorAll('nav button').forEach(function (b) {
     var p = b.getAttribute('data-頁');
-    var 顯 = p === '權限' ? (D.身分 === '開發者' || D.身分 === '主管理員') : p === '開發者' ? D.身分 === '開發者' : (!需[p] || 有(需[p]));
+    var 顯 = p === '權限' ? (D.身分 === '開發者' || D.身分 === '主管理員')
+      : p === '開發者' ? D.身分 === '開發者'
+      : p === '審核' ? (有('審核') || 有('任務'))
+      : p === '任務' ? (有('任務') || 有('審核'))
+      : (!需[p] || 有(需[p]));
     b.style.display = 顯 ? '' : 'none';
   });
 }
@@ -176,7 +184,7 @@ document.querySelectorAll('nav button').forEach(function (b) {
 
 function 畫() {
   if (!D) return;
-  var h = { 總覽: 畫總覽, 成員: 畫成員, 任務: 畫任務, 統計: 畫統計, 設定: 畫設定, 紀錄: 畫紀錄, 權限: 畫權限, 開發者: 畫開發者 }[頁]();
+  var h = { 總覽: 畫總覽, 成員: 畫成員, 任務: 畫任務, 審核: 畫審核, 商品: 畫商品, 功能: 畫功能, 統計: 畫統計, 設定: 畫設定, 紀錄: 畫紀錄, 權限: 畫權限, 開發者: 畫開發者 }[頁]();
   $('內容').innerHTML = '<h2 class="頁標">' + 頁 + '</h2>' + h;
   var s = $('搜尋'); if (s) { s.value = 搜; s.oninput = function () { 搜 = s.value; var p = s.selectionStart; 畫(); var n = $('搜尋'); n.focus(); n.setSelectionRange(p, p); }; }
 }
@@ -399,28 +407,152 @@ function 送調點(u, ev) {
 
 function 畫任務() {
   var 列 = D.任務.filter(function (t) { return !搜 || t.內容.indexOf(搜) >= 0 || String(t.編號).indexOf(搜) >= 0; });
-  var 組 = { '待審核': [], '執行中': [], '開放': [] };
+  var 組 = { '待撤銷': [], '待審核': [], '執行中': [], '搶任務中': [], '開放': [] };
   列.forEach(function (t) { (組[t.狀態] = 組[t.狀態] || []).push(t); });
+  var 徽表 = { '待撤銷': '<span class="徽 危">! 待撤銷</span>', '待審核': '<span class="徽 待">◐ 待審核</span>', '執行中': '<span class="徽 進">● 執行中</span>', '搶任務中': '<span class="徽 待">◐ 搶任務中</span>', '開放': '<span class="徽 進">● 開放</span>' };
   var h = '<input id="搜尋" class="搜" placeholder="搜尋內容或編號">';
-  ['待審核', '執行中', '開放'].forEach(function (s) {
+  ['待撤銷', '待審核', '執行中', '搶任務中', '開放'].forEach(function (s) {
     var g = 組[s]; if (!g.length) return;
-    var 徽 = { '待審核': '<span class="徽 待">◐ 待審核</span>', '執行中': '<span class="徽 進">● 執行中</span>', '開放': '<span class="徽 進">● 開放</span>' }[s];
     h += '<h3>' + s + '（' + g.length + '）</h3><div class="卡">' + g.map(function (t) {
-      var 鍵 = t.u ? '\'' + t.編號 + ':' + t.u + '\'' : t.編號;
-      var 鈕 = s === '待審核'
-        ? !有('審核') ? '' : '<button class="鈕 主鈕" onclick="任務(\'通過\',' + 鍵 + ')">通過</button><button class="鈕" onclick="任務(\'退回\',' + 鍵 + ')">退回</button>'
-        : !有('任務') ? '' : '<button class="鈕 紅鈕" onclick="任務(\'刪除\',' + t.編號 + ',\'刪除 #' + t.編號 + '？出資會全額退回\')">刪除</button>';
-      return '<div class="列"><div class="主">#' + t.編號 + ' ' + 跳脫(t.內容) + (t.類型 !== '一般' ? '<span class="徽">' + 跳脫(t.類型) + '</span>' : '') +
-        徽 + '<div class="副">' + 跳脫(t.發起人) + (t.認領人 ? ' → ' + 跳脫(t.認領人) : '') + '｜報酬 ' + t.報酬 + '｜截止 ' + t.截止 + (t.送出 ? '｜送出 ' + t.送出 : '') + '</div></div>' + 鈕 + '</div>';
+      return '<div class="列" style="cursor:pointer" onclick="任務窗(' + t.編號 + ')"><div class="主">#' + t.編號 + ' ' + 跳脫(t.內容) +
+        (t.類型 !== '一般' ? '<span class="徽">' + 跳脫(t.類型) + '</span>' : '') + 徽表[s] +
+        '<div class="副">' + 跳脫(t.發起人) + (t.認領人 ? ' → ' + 跳脫(t.認領人) : '') + '｜報酬 ' + t.報酬 + '｜截止 ' + t.截止 + (t.送出 ? '｜送出 ' + t.送出 : '') + '</div></div>' +
+        '<button class="鈕">查看／修改</button></div>';
     }).join('') + '</div>';
   });
   if (!列.length) h += '<div class="卡 空">目前沒有進行中的任務</div>';
   return h;
 }
 
-function 任務(動作, 編號, 問) {
+function 任務窗(編號) {
+  var t = D.任務.filter(function (x) { return String(x.編號) === String(編號); })[0];
+  if (!t) return;
+  var 可編 = 有('任務') && ['開放', '執行中', '搶任務中', '待撤銷'].indexOf(t.狀態) >= 0;
+  var 表單 = 可編 ? '<label>內容</label><input id="任內容" value="' + 跳脫(t.內容) + '">' +
+    '<label>報酬（' + 跳脫(D.點名) + '）</label><input id="任報酬" type="number" inputmode="numeric" value="' + t.報酬 + '">' +
+    '<label>截止日（YYYY-MM-DD）</label><input id="任截止" value="' + 跳脫(t.截止ISO || '') + '">' : '';
+  var 鈕 = '';
+  if (t.狀態 === '待審核' && 有('審核')) {
+    var 鍵 = t.u ? '\'' + t.編號 + ':' + t.u + '\'' : t.編號;
+    鈕 += '<button class="鈕 主鈕" onclick="任務(\'通過\',' + 鍵 + ',null,\'通過 #' + t.編號 + '？\')">通過</button><button class="鈕" onclick="任務(\'退回\',' + 鍵 + ')">退回</button>';
+  }
+  if (t.狀態 === '待撤銷' && 有('任務')) 鈕 += '<button class="鈕 主鈕" onclick="撤銷窗(' + t.編號 + ')">同意撤銷</button><button class="鈕" onclick="任務(\'撤銷拒絕\',' + t.編號 + ',null,\'不同意撤銷 #' + t.編號 + '？\')">不同意</button>';
+  if (有('任務') && ['開放', '執行中', '搶任務中'].indexOf(t.狀態) >= 0) 鈕 += '<button class="鈕 紅鈕" onclick="任務(\'刪除\',' + t.編號 + ',null,\'刪除 #' + t.編號 + '？出資全額退回\')">刪除</button>';
+  if (可編) 鈕 += '<button class="鈕 主鈕" onclick="存任務(' + t.編號 + ')">儲存修改</button>';
+  開窗('<b>#' + t.編號 + ' ' + 跳脫(t.內容) + '</b><div class="副">' + 跳脫(t.狀態) + '｜' + 跳脫(t.類型 || '一般') + '｜發起 ' + 跳脫(t.發起人) + (t.認領人 ? '｜認領 ' + 跳脫(t.認領人) : '') + '｜報酬 ' + t.報酬 + '｜截止 ' + t.截止 + '</div>' +
+    表單 + '<div class="鈕列">' + 鈕 + '</div><div class="鈕列"><button class="鈕" onclick="關窗()">關閉</button></div>');
+}
+function 存任務(編號) {
+  呼叫('面板_任務', ['修改', String(編號), { 內容: $('任內容').value, 報酬: $('任報酬').value, 截止: $('任截止').value }],
+    function (x) { 關窗(); 重載('✅ ' + x); });
+}
+function 任務(動作, 編號, 參數, 問) {
   if (問 && !confirm(問)) return;
-  呼叫('面板_任務', [動作, String(編號)], 重載);
+  呼叫('面板_任務', [動作, String(編號), 參數 || {}], function (x) { 關窗(); 重載('✅ ' + x); });
+}
+
+/* ───── 審核 ───── */
+function 畫審核() {
+  var 待 = D.任務.filter(function (t) { return t.狀態 === '待審核'; });
+  var 撤 = D.任務.filter(function (t) { return t.狀態 === '待撤銷'; });
+  var h = '<h3>待審核完成（' + 待.length + '）</h3><div class="卡">' + (待.length ? 待.map(function (t) {
+    var 鍵 = t.u ? '\'' + t.編號 + ':' + t.u + '\'' : t.編號;
+    return '<div class="列"><div class="主">#' + t.編號 + ' ' + 跳脫(t.內容) + (t.類型 !== '一般' ? '<span class="徽">' + 跳脫(t.類型) + '</span>' : '') +
+      '<div class="副">' + 跳脫(t.發起人) + ' → ' + 跳脫(t.認領人) + '｜報酬 ' + t.報酬 + '｜送出 ' + (t.送出 || '') + '</div></div>' +
+      (有('審核') ? '<button class="鈕 主鈕" onclick="任務(\'通過\',' + 鍵 + ',null,\'通過 #' + t.編號 + '？\')">通過</button><button class="鈕" onclick="任務(\'退回\',' + 鍵 + ')">退回</button>' : '') + '</div>';
+  }).join('') : '<div class="空">沒有待審核</div>') + '</div>';
+  h += '<h3>撤銷申請（' + 撤.length + '）</h3><div class="卡">' + (撤.length ? 撤.map(function (t) {
+    return '<div class="列"><div class="主">#' + t.編號 + ' ' + 跳脫(t.內容) + '<span class="徽 待">◐ 待撤銷</span>' +
+      '<div class="副">發起人 ' + 跳脫(t.發起人) + (t.認領人 ? '｜目前由 ' + 跳脫(t.認領人) : '') + '｜報酬 ' + t.報酬 + '</div></div>' +
+      (有('任務') ? '<button class="鈕 主鈕" onclick="撤銷窗(' + t.編號 + ')">同意撤銷</button><button class="鈕" onclick="任務(\'撤銷拒絕\',' + t.編號 + ',null,\'不同意撤銷 #' + t.編號 + '？\')">不同意</button>' : '') + '</div>';
+  }).join('') : '<div class="空">沒有撤銷申請</div>') + '</div>';
+  return h;
+}
+function 撤銷窗(編號) {
+  開窗('<b>同意撤銷 #' + 編號 + '</b><div class="副">選擇退還給發佈者的點數</div>' +
+    '<div class="鈕列"><button class="鈕 主鈕" onclick="任務(\'撤銷同意\',' + 編號 + ',{方式:\'全額\'})">全額退</button>' +
+    '<button class="鈕" onclick="任務(\'撤銷同意\',' + 編號 + ',{方式:\'比例\'})">依比例退</button>' +
+    '<button class="鈕" onclick="任務(\'撤銷同意\',' + 編號 + ',{方式:\'不退\'})">不退費</button></div>' +
+    '<div class="鈕列"><button class="鈕" onclick="關窗()">取消</button></div>');
+}
+
+/* ───── 商品 ───── */
+function 畫商品() {
+  var s = D.商店 || { 商品: [], 訂單: [] };
+  var n = 跳脫(D.點名);
+  var h = '<div class="鈕列"><button class="鈕 主鈕" onclick="商窗()">＋ 新增商品</button></div>';
+  h += '<h3>商品（' + s.商品.length + '）</h3><div class="卡">' + (s.商品.length ? s.商品.map(function (p) {
+    var 徽 = p.狀態 === '上架' ? '<span class="徽 進">● 上架</span>' : '<span class="徽 結">○ 下架</span>';
+    return '<div class="列"><div class="主">' + 跳脫(p.名稱) + ' <span class="副">' + 跳脫(p.編號) + '</span>' + 徽 +
+      '<div class="副">' + p.價格 + ' ' + n + '｜庫存 ' + (p.庫存 === null ? '不限' : p.庫存) + (p.每人限購 ? '｜每人限 ' + p.每人限購 : '') + (p.給予資產 ? '｜道具 ' + 跳脫(p.給予資產) : '') + '</div></div>' +
+      '<button class="鈕" onclick="商編輯(\'' + p.編號 + '\')">編輯</button>' +
+      '<button class="鈕" onclick="商動(\'切換\',\'' + p.編號 + '\')">' + (p.狀態 === '上架' ? '下架' : '上架') + '</button>' +
+      '<button class="鈕 紅鈕" onclick="商動(\'刪除\',\'' + p.編號 + '\',\'刪除 ' + 跳脫(p.名稱) + '？\')">刪除</button></div>';
+  }).join('') : '<div class="空">還沒有商品</div>') + '</div>';
+  h += '<h3>訂單（最近 100 筆）</h3><div class="卡"><table><tr class="表頭"><td>時間</td><td>誰</td><td>商品</td><td>花費</td><td>狀態</td><td>操作</td></tr>' +
+    (s.訂單.length ? s.訂單.map(function (r) {
+      var 操 = '';
+      if (r.狀態 === '待兌換') 操 = '<button class="鈕 主鈕" onclick="商動(\'兌換\',null,null,\'' + 跳脫(r.單號) + '\')">兌換</button>';
+      if (r.狀態 !== '退款') 操 += '<button class="鈕 紅鈕" onclick="商動(\'退款\',null,null,\'' + 跳脫(r.單號) + '\')">退款</button>';
+      var 徽 = { '待兌換': '<span class="徽 待">◐ 待兌換</span>', '完成': '<span class="徽 進">● 完成</span>', '已兌換': '<span class="徽 進">● 已兌換</span>', '退款': '<span class="徽 危">! 退款</span>' }[r.狀態] || 跳脫(r.狀態);
+      return '<tr><td style="white-space:nowrap">' + 跳脫(r.時間) + '</td><td>' + 跳脫(r.誰) + '</td><td>' + 跳脫(r.商品) + '</td><td>' + r.花費 + '</td><td>' + 徽 + '</td><td>' + 操 + '</td></tr>';
+    }).join('') : '<tr><td colspan="6" class="空">沒有訂單</td></tr>') + '</table></div>';
+  return h;
+}
+function 商窗(p) {
+  開窗('<b>' + (p ? '編輯商品 ' + 跳脫(p.編號) : '新增商品') + '</b>' + (p ? '<input type="hidden" id="商編" value="' + 跳脫(p.編號) + '">' : '') +
+    '<label>名稱</label><input id="商名" value="' + (p ? 跳脫(p.名稱) : '') + '">' +
+    '<label>價格（' + 跳脫(D.點名) + '）</label><input id="商價" type="number" inputmode="numeric" value="' + (p ? p.價格 : '') + '">' +
+    '<label>庫存（留空＝不限）</label><input id="商庫" type="number" inputmode="numeric" value="' + (p && p.庫存 !== null ? p.庫存 : '') + '">' +
+    '<label>每人限購（0＝不限）</label><input id="商限" type="number" inputmode="numeric" value="' + (p ? p.每人限購 : 0) + '">' +
+    (p ? '' : '<label>類型</label><select id="商型"><option value="系統">系統商店</option><option value="個人">個人商店</option><option value="真實">真實商店</option></select>' +
+      '<label>給予道具（留空＝實體/服務，購買後待兌換）</label><input id="商資" placeholder="例如 優先卡">') +
+    '<label>說明</label><input id="商說" value="' + (p ? 跳脫(p.說明) : '') + '">' +
+    '<label>可否退貨</label><select id="商退"><option value="否"' + (p && p.可否退貨 === '是' ? '' : ' selected') + '>不可退</option><option value="是"' + (p && p.可否退貨 === '是' ? ' selected' : '') + '>可退</option></select>' +
+    '<label>退貨期限天數（0＝不限期）</label><input id="商期" type="number" inputmode="numeric" value="' + (p ? p.退貨期限天數 : 0) + '">' +
+    '<div class="鈕列"><button class="鈕" onclick="關窗()">取消</button><button class="鈕 主鈕" onclick="存商品(' + (p ? 'true' : 'false') + ')">' + (p ? '儲存' : '新增') + '</button></div>');
+}
+function 商編輯(編號) { var p = (D.商店.商品 || []).filter(function (x) { return x.編號 === 編號; })[0]; if (p) 商窗(p); }
+function 存商品(編輯) {
+  var d = { 名稱: $('商名').value, 價格: $('商價').value, 庫存: $('商庫').value, 每人限購: $('商限').value, 說明: $('商說').value, 可否退貨: $('商退').value, 退貨期限天數: $('商期').value };
+  if (編輯) d.編號 = $('商編').value; else { d.類型 = $('商型').value; d.給予資產 = $('商資').value; }
+  呼叫('面板_商店', [編輯 ? '修改' : '新增', d], function (x) { 關窗(); 重載('✅ ' + x); });
+}
+function 商動(動作, 編號, 問, 單號) {
+  if (問 && !confirm(問)) return;
+  呼叫('面板_商店', [動作, { 編號: 編號, 單號: 單號 }], function (x) { 關窗(); 重載('✅ ' + x); });
+}
+
+/* ───── 功能 ───── */
+function 畫功能() {
+  var h = '<h3>📢 發公告</h3><div class="卡">' +
+    (有('公告') ? '<label>公告內容（最多 1000 字，會發到所有已綁定群組）</label><textarea id="公告文" rows="4" style="width:100%;font:inherit;padding:8px;border:1px solid var(--border);border-radius:var(--r-sm)"></textarea>' +
+      '<div class="鈕列"><button class="鈕 主鈕" onclick="送公告(this)">發送公告</button></div>' : '<div class="空">你沒有「公告」權限</div>') + '</div>';
+  h += '<h3>🛠 工具</h3><div class="卡">' +
+    (有('成員') ? '<div class="列"><div class="主">產生管理員邀請碼<div class="副">24 小時內有效、只能用一次</div></div><button class="鈕" onclick="邀碼(this)">產生</button></div>' : '') +
+    (有('點數') ? '<div class="列"><div class="主">批次調點<div class="副">到「成員」頁勾選多人後一次調整</div></div><button class="鈕" onclick="去(\'成員\')">前往</button></div>' : '') +
+    (有('備份') ? '<div class="列"><div class="主">匯出備份<div class="副">複製一份試算表到雲端硬碟</div></div><button class="鈕" onclick="匯出_(this)">立即匯出</button></div>' : '') +
+    '</div>';
+  return h;
+}
+function 送公告(b) {
+  var 文 = $('公告文').value.trim();
+  if (!文) return 提示('請輸入公告內容');
+  if (!confirm('發送到所有已綁定群組？會用推播額度。')) return;
+  b.disabled = true; b.textContent = '發送中…';
+  呼叫('面板_公告', [文], function (x) { 重載('✅ ' + x); }, function (e) { b.disabled = false; b.textContent = '發送公告'; 提示('❌ ' + e); });
+}
+function 邀碼(b) {
+  b.disabled = true; b.textContent = '產生中…';
+  呼叫('面板_邀請', [], function (x) { 開窗('<b>管理員邀請碼</b><div class="副" style="word-break:break-all;margin:8px 0">' + 跳脫(x) + '</div><div class="鈕列"><button class="鈕" onclick="關窗()">關閉</button></div>'); },
+    function (e) { b.disabled = false; b.textContent = '產生'; 提示('❌ ' + e); });
+}
+function 匯出_(b) {
+  b.disabled = true; b.textContent = '匯出中…';
+  呼叫('面板_匯出', [], function (x) {
+    b.disabled = false; b.textContent = '立即匯出';
+    開窗('<b>已備份</b><div class="副" style="word-break:break-all;margin:8px 0">' + 跳脫(x).replace('\n', '<br>') + '</div><div class="鈕列"><button class="鈕" onclick="關窗()">關閉</button></div>');
+  }, function (e) { b.disabled = false; b.textContent = '立即匯出'; 提示('❌ ' + e); });
 }
 
 function 畫設定() {
