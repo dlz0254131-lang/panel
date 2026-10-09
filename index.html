@@ -151,7 +151,7 @@ function 呼叫(函式, 參數, 成功, 失敗, 重試) {
 }
 
 var 前端版本 = '2.0.40';
-function 載入() {
+function 載入(失敗) {
   呼叫('面板_資料', [], function (d) {
     /* 前端版本和伺服器不同 → 強制用版本號重抓一次（避開瀏覽器快取舊頁） */
     if (d.版本 && d.版本 !== 前端版本 && !sessionStorage.getItem('v重載')) {
@@ -163,7 +163,7 @@ function 載入() {
     D = d; $('組織').textContent = d.組織 + '｜管理面板';
     $('我').textContent = '登入：' + d.我 + (d.身分 && d.身分 !== '管理員' ? '（' + d.身分 + '）' : '');
     套權限(); 畫();
-  });
+  }, 失敗);
 }
 
 function 有(k) { return !D || !D.權限 || D.權限.indexOf(k) >= 0; }
@@ -666,8 +666,7 @@ function 關窗() { $('遮').classList.remove('顯'); }
 $('遮').onclick = function (e) { if (e.target === $('遮')) 關窗(); };
 
 if (!通行碼) $('內容').innerHTML = '<div class="錯">請從 LINE 打「管理 面板」取得連結。</div>';
-else 呼叫('面板_資料', [], function (d) { D = d; $('組織').textContent = d.組織 + '｜管理面板'; $('我').textContent = '登入：' + d.我 + '｜伺服器 ' + (d.耗時 / 1000).toFixed(1) + ' 秒'; 畫(); },
-  function (m) { $('內容').innerHTML = '<div class="錯">' + 跳脫(m) + '</div>'; });
+else 載入(function (m) { $('內容').innerHTML = '<div class="錯">' + 跳脫(m) + '</div>'; });
 </script>
 </body>
 </html>
