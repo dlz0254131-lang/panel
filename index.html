@@ -150,8 +150,16 @@ function 呼叫(函式, 參數, 成功, 失敗, 重試) {
     .catch(function (e) { clearTimeout(計); (失敗 || 錯)(e.name === 'AbortError' ? '連線逾時，請重試' : (e.message || '連線失敗')); });
 }
 
+var 前端版本 = '2.0.40';
 function 載入() {
   呼叫('面板_資料', [], function (d) {
+    /* 前端版本和伺服器不同 → 強制用版本號重抓一次（避開瀏覽器快取舊頁） */
+    if (d.版本 && d.版本 !== 前端版本 && !sessionStorage.getItem('v重載')) {
+      sessionStorage.setItem('v重載', '1');
+      location.replace(location.pathname + '?v=' + encodeURIComponent(d.版本) + location.hash);
+      return;
+    }
+    sessionStorage.removeItem('v重載');
     D = d; $('組織').textContent = d.組織 + '｜管理面板';
     $('我').textContent = '登入：' + d.我 + (d.身分 && d.身分 !== '管理員' ? '（' + d.身分 + '）' : '');
     套權限(); 畫();
