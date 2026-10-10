@@ -123,6 +123,7 @@ var 參 = {};
 location.hash.replace(/^#/, '').split('&').forEach(function (kv) { var i = kv.indexOf('='); if (i > 0) 參[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1)); });
 var 通行碼 = 參.t || '';
 var API = 參.api || '';
+var 原hash = location.hash;                                      // 版本檢查重載時要帶回通行碼與 API
 if (通行碼) history.replaceState(null, '', location.pathname);   // 網址列不留通行碼
 var 序 = 0;
 var D = null, 頁 = '總覽', 搜 = '', S = null, S區 = '本月', S載 = false, 勾 = {}, 搶勾 = {};
@@ -150,16 +151,17 @@ function 呼叫(函式, 參數, 成功, 失敗, 重試) {
     .catch(function (e) { clearTimeout(計); (失敗 || 錯)(e.name === 'AbortError' ? '連線逾時，請重試' : (e.message || '連線失敗')); });
 }
 
-var 前端版本 = '2.0.40';
+var 前端版本 = '2.0.43';
 function 載入(失敗) {
   呼叫('面板_資料', [], function (d) {
-    /* 前端版本和伺服器不同 → 強制用版本號重抓一次（避開瀏覽器快取舊頁） */
-    if (d.版本 && d.版本 !== 前端版本 && !sessionStorage.getItem('v重載')) {
-      sessionStorage.setItem('v重載', '1');
-      location.replace(location.pathname + '?v=' + encodeURIComponent(d.版本) + location.hash);
+    /* 前端版本和伺服器不同 → 用版本號重抓一次（避開瀏覽器快取舊頁）；重載一定要帶回通行碼 */
+    var 已載 = false; try { 已載 = !!sessionStorage.getItem('v重載'); } catch (e) {}
+    if (d.版本 && d.版本 !== 前端版本 && !已載) {
+      try { sessionStorage.setItem('v重載', '1'); } catch (e) {}
+      location.replace(location.pathname + '?v=' + encodeURIComponent(d.版本) + 原hash);
       return;
     }
-    sessionStorage.removeItem('v重載');
+    try { sessionStorage.removeItem('v重載'); } catch (e) {}
     D = d; $('組織').textContent = d.組織 + '｜管理面板';
     $('我').textContent = '登入：' + d.我 + (d.身分 && d.身分 !== '管理員' ? '（' + d.身分 + '）' : '');
     套權限(); 畫();
