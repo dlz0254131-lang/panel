@@ -151,7 +151,7 @@ function 呼叫(函式, 參數, 成功, 失敗, 重試) {
     .catch(function (e) { clearTimeout(計); (失敗 || 錯)(e.name === 'AbortError' ? '連線逾時，請重試' : (e.message || '連線失敗')); });
 }
 
-var 前端版本 = '2.0.43';
+var 前端版本 = '2.0.45';
 function 載入(失敗) {
   呼叫('面板_資料', [], function (d) {
     /* 前端版本和伺服器不同 → 用版本號重抓一次（避開瀏覽器快取舊頁）；重載一定要帶回通行碼 */
@@ -296,6 +296,11 @@ function 畫統計() {
       return '<div title="' + d.日 + ' +' + d.發出 + ' ' + d.回收 + '" style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:1px">' +
         '<div style="background:var(--primary-dark);height:' + (d.發出 / 峰 * 80) + 'px"></div><div style="background:var(--danger);height:' + (-d.回收 / 峰 * 80) + 'px"></div></div>'; }).join('') +
       '</div><div class="副" style="display:flex;justify-content:space-between"><span>' + S.走勢[0].日 + '</span><span>▲ 深綠＝發出　▼ 紅＝回收</span><span>' + S.走勢[S.走勢.length - 1].日 + '</span></div></div>';
+  }
+  if (S.商品 && S.商品.length) {
+    h += '<h3>商店兌換</h3><div class="卡"><table><tr class="表頭"><td>商品</td><td>兌換數</td><td>消耗' + n + '</td></tr>' +
+      S.商品.map(function (x) { return '<tr><td>' + 跳脫(x.名稱) + '<span class="副"> ' + 跳脫(x.編號) + '</span></td><td>' + x.兌換數 + '</td><td>' + x.點數 + '</td></tr>'; }).join('') +
+      '</table><div class="副" style="margin-top:6px">依兌換數排序；不含已退貨</div></div>';
   }
   h += '<h3>成員活躍度</h3><div class="卡"><table><tr class="表頭"><td>成員</td><td>發佈</td><td>接</td><td>完成</td><td>完成率</td><td>收入</td><td>最後</td></tr>' +
     S.活躍.map(function (x) {
@@ -494,19 +499,19 @@ function 畫商品() {
   h += '<h3>商品（' + s.商品.length + '）</h3><div class="卡">' + (s.商品.length ? s.商品.map(function (p) {
     var 徽 = p.狀態 === '上架' ? '<span class="徽 進">● 上架</span>' : '<span class="徽 結">○ 下架</span>';
     return '<div class="列"><div class="主">' + 跳脫(p.名稱) + ' <span class="副">' + 跳脫(p.編號) + '</span>' + 徽 +
-      '<div class="副">' + p.價格 + ' ' + n + '｜庫存 ' + (p.庫存 === null ? '不限' : p.庫存) + (p.每人限購 ? '｜每人限 ' + p.每人限購 : '') + (p.給予資產 ? '｜道具 ' + 跳脫(p.給予資產) : '') + '</div></div>' +
+      '<div class="副">' + p.價格 + ' ' + n + '｜庫存 ' + (p.庫存 === null ? '不限' : p.庫存) + (p.每人限購 ? '｜每人限 ' + p.每人限購 : '') + (p.每日上限 ? '｜每日限 ' + p.每日上限 : '') + (p.給予資產 ? '｜道具 ' + 跳脫(p.給予資產) : '') + '</div></div>' +
       '<button class="鈕" onclick="商編輯(\'' + p.編號 + '\')">編輯</button>' +
       '<button class="鈕" onclick="商動(\'切換\',\'' + p.編號 + '\')">' + (p.狀態 === '上架' ? '下架' : '上架') + '</button>' +
       '<button class="鈕 紅鈕" onclick="商動(\'刪除\',\'' + p.編號 + '\',\'刪除 ' + 跳脫(p.名稱) + '？\')">刪除</button></div>';
   }).join('') : '<div class="空">還沒有商品</div>') + '</div>';
-  h += '<h3>訂單（最近 100 筆）</h3><div class="卡"><table><tr class="表頭"><td>時間</td><td>誰</td><td>商品</td><td>花費</td><td>狀態</td><td>操作</td></tr>' +
+  h += '<h3>訂單（最近 100 筆）</h3><div class="卡"><table><tr class="表頭"><td>時間</td><td>誰</td><td>商品</td><td>規格備註</td><td>花費</td><td>狀態</td><td>操作</td></tr>' +
     (s.訂單.length ? s.訂單.map(function (r) {
       var 操 = '';
       if (r.狀態 === '待兌換') 操 = '<button class="鈕 主鈕" onclick="商動(\'兌換\',null,null,\'' + 跳脫(r.單號) + '\')">兌換</button>';
       if (r.狀態 !== '退款') 操 += '<button class="鈕 紅鈕" onclick="商動(\'退款\',null,null,\'' + 跳脫(r.單號) + '\')">退款</button>';
       var 徽 = { '待兌換': '<span class="徽 待">◐ 待兌換</span>', '完成': '<span class="徽 進">● 完成</span>', '已兌換': '<span class="徽 進">● 已兌換</span>', '退款': '<span class="徽 危">! 退款</span>' }[r.狀態] || 跳脫(r.狀態);
-      return '<tr><td style="white-space:nowrap">' + 跳脫(r.時間) + '</td><td>' + 跳脫(r.誰) + '</td><td>' + 跳脫(r.商品) + '</td><td>' + r.花費 + '</td><td>' + 徽 + '</td><td>' + 操 + '</td></tr>';
-    }).join('') : '<tr><td colspan="6" class="空">沒有訂單</td></tr>') + '</table></div>';
+      return '<tr><td style="white-space:nowrap">' + 跳脫(r.時間) + '</td><td>' + 跳脫(r.誰) + '</td><td>' + 跳脫(r.商品) + '</td><td>' + 跳脫(r.備註 || '') + '</td><td>' + r.花費 + '</td><td>' + 徽 + '</td><td>' + 操 + '</td></tr>';
+    }).join('') : '<tr><td colspan="7" class="空">沒有訂單</td></tr>') + '</table></div>';
   return h;
 }
 function 商窗(p) {
@@ -515,6 +520,8 @@ function 商窗(p) {
     '<label>價格（' + 跳脫(D.點名) + '）</label><input id="商價" type="number" inputmode="numeric" value="' + (p ? p.價格 : '') + '">' +
     '<label>庫存（留空＝不限）</label><input id="商庫" type="number" inputmode="numeric" value="' + (p && p.庫存 !== null ? p.庫存 : '') + '">' +
     '<label>每人限購（0＝不限）</label><input id="商限" type="number" inputmode="numeric" value="' + (p ? p.每人限購 : 0) + '">' +
+    '<label>每日上限（0＝不限）</label><input id="商日" type="number" inputmode="numeric" value="' + (p ? (p.每日上限 || 0) : 0) + '">' +
+    '<label>規格提示（實體品購買時顯示；留空＝預設）</label><input id="商規" value="' + (p ? 跳脫(p.需填規格 || '') : '') + '">' +
     (p ? '' : '<label>類型</label><select id="商型"><option value="系統">系統商店</option><option value="個人">個人商店</option><option value="真實">真實商店</option></select>' +
       '<label>給予道具（留空＝實體/服務，購買後待兌換）</label><input id="商資" placeholder="例如 優先卡">') +
     '<label>說明</label><input id="商說" value="' + (p ? 跳脫(p.說明) : '') + '">' +
@@ -524,13 +531,13 @@ function 商窗(p) {
 }
 function 商編輯(編號) { var p = (D.商店.商品 || []).filter(function (x) { return x.編號 === 編號; })[0]; if (p) 商窗(p); }
 function 存商品(編輯) {
-  var d = { 名稱: $('商名').value, 價格: $('商價').value, 庫存: $('商庫').value, 每人限購: $('商限').value, 說明: $('商說').value, 可否退貨: $('商退').value, 退貨期限天數: $('商期').value };
+  var d = { 名稱: $('商名').value, 價格: $('商價').value, 庫存: $('商庫').value, 每人限購: $('商限').value, 每日上限: $('商日').value, 需填規格: $('商規').value, 說明: $('商說').value, 可否退貨: $('商退').value, 退貨期限天數: $('商期').value };
   if (編輯) d.編號 = $('商編').value; else { d.類型 = $('商型').value; d.給予資產 = $('商資').value; }
   呼叫('面板_商店', [編輯 ? '修改' : '新增', d], function (x) { 關窗(); 重載('✅ ' + x); });
 }
 function 商動(動作, 編號, 問, 單號) {
   if (問 && !confirm(問)) return;
-  呼叫('面板_商店', [動作, { 編號: 編號, 單號: 單號 }], function (x) { 關窗(); 重載('✅ ' + x); });
+  呼叫('面板_商店', [動作, { 編號: 編號, 單號: 單號 }], function (x) { 關窗(); 重載(x && x.charAt(0) === '✅' ? x : '✅ ' + x); });
 }
 
 /* ───── 功能 ───── */
