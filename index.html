@@ -136,6 +136,9 @@ function 提示(s) { var e = $('提示'); e.textContent = s; e.classList.add('�
 var 對照 = { 面板_資料: 'data', 面板_改設定: 'setting', 面板_調點: 'points', 面板_成員: 'member', 面板_任務: 'task', 面板_統計: 'stats', 面板_批次: 'batch', 面板_權限: 'perms', 面板_改權限: 'setperm', 面板_設主: 'setmaster', 面板_體檢: 'health', 面板_池儲值: 'pool',
   面板_商店: 'shop', 面板_公告: 'announce', 面板_匯出: 'export', 面板_邀請: 'invite', 面板_系統: 'sys', 面板_週期: 'cycle', 面板_搶開: 'grab' };
 var 最後網址 = '';
+/* 只有「讀取」可以自動重試；寫入絕不自動重送（避免同一筆被記兩次）。寫入靠後端冪等編號防重。 */
+var 只讀 = { 面板_資料: 1, 面板_統計: 1, 面板_權限: 1, 面板_體檢: 1 };
+function 新編號() { return 'P' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 function 呼叫(函式, 參數, 成功, 失敗, 重試) {
   function 錯(m) { 提示('❌ ' + m); }
   var 網 = API + '?p=api&a=' + 對照[函式] + '&t=' + encodeURIComponent(通行碼) + '&q=' + encodeURIComponent(JSON.stringify(參數));
@@ -145,13 +148,13 @@ function 呼叫(函式, 參數, 成功, 失敗, 重試) {
     .then(function (r) { 最後網址 = r.url + '｜' + r.status + '｜' + (r.redirected ? '轉址' : '直達'); return r.text(); })
     .then(function (txt) {
       clearTimeout(計);
-      var r; try { r = JSON.parse(txt); } catch (e) { if (!重試) { 呼叫(函式, 參數, 成功, 失敗, true); return; } var 摘 = txt.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160); throw new Error('伺服器回應異常［' + 最後網址.replace(/[?#].*?｜/, '｜') + '］' + (摘 || '（空白）').slice(0, 60)); }
+      var r; try { r = JSON.parse(txt); } catch (e) { if (只讀[函式] && !重試) { 呼叫(函式, 參數, 成功, 失敗, true); return; } var 摘 = txt.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160); throw new Error('伺服器回應異常［' + 最後網址.replace(/[?#].*?｜/, '｜') + '］' + (摘 || '（空白）').slice(0, 60)); }
       if (r.ok) 成功 && 成功(r.v); else (失敗 || 錯)(r.e);
     })
     .catch(function (e) { clearTimeout(計); (失敗 || 錯)(e.name === 'AbortError' ? '連線逾時，請重試' : (e.message || '連線失敗')); });
 }
 
-var 前端版本 = '2.0.47';
+var 前端版本 = '2.0.50';
 function 載入(失敗) {
   呼叫('面板_資料', [], function (d) {
     /* 前端版本和伺服器不同 → 用版本號重抓一次（避開瀏覽器快取舊頁）；重載一定要帶回通行碼 */
@@ -266,7 +269,7 @@ function 送批次(ev) {
   if (!n || !因) { 提示('數量和原因都要填'); return; }
   if (!confirm('確定每人 ' + (n > 0 ? '+' : '') + n + '，共 ' + 名單.length + ' 人？')) return;
   var b = (ev || window.event).target; b.disabled = true; b.textContent = '處理中…';
-  呼叫('面板_批次', [名單, r, n, 因], function (x) { 關窗(); 勾 = {}; S = null; 重載('✅ ' + x); });
+  呼叫('面板_批次', [名單, r, n, 因, 新編號()], function (x) { 關窗(); 勾 = {}; S = null; 重載('✅ ' + x); });
 }
 
 function 畫統計() {
@@ -417,7 +420,7 @@ function 送調點(u, ev) {
   var n = $('調數').value, 因 = $('調因').value, r = $('調資產').value;
   if (!n || !因) { 提示('數量和原因都要填'); return; }
   var b = (ev || window.event).target; b.disabled = true; b.textContent = '處理中…';
-  呼叫('面板_調點', [u, r, n, 因], function (x) { 關窗(); 重載('✅ ' + x); });
+  呼叫('面板_調點', [u, r, n, 因, 新編號()], function (x) { 關窗(); 重載('✅ ' + x); });
 }
 
 function 畫任務() {
