@@ -502,7 +502,7 @@ function 畫商品() {
   h += '<h3>商品（' + s.商品.length + '）</h3><div class="卡">' + (s.商品.length ? s.商品.map(function (p) {
     var 徽 = p.狀態 === '上架' ? '<span class="徽 進">● 上架</span>' : '<span class="徽 結">○ 下架</span>';
     return '<div class="列"><div class="主">' + 跳脫(p.名稱) + ' <span class="副">' + 跳脫(p.編號) + '</span>' + 徽 +
-      '<div class="副">' + p.價格 + ' ' + n + '｜庫存 ' + (p.庫存 === null ? '不限' : p.庫存) + (p.每人限購 ? '｜每人限 ' + p.每人限購 : '') + (p.每日上限 ? '｜每日限 ' + p.每日上限 : '') + (p.給予資產 ? '｜道具 ' + 跳脫(p.給予資產) : '') + '</div></div>' +
+      '<div class="副">' + p.價格 + ' ' + n + '｜' + (p.剩餘券碼 !== null && p.剩餘券碼 !== undefined ? '🏪 券碼剩 ' + p.剩餘券碼 + ' 組' : '庫存 ' + (p.庫存 === null ? '不限' : p.庫存)) + (p.每人限購 ? '｜每人限 ' + p.每人限購 : '') + (p.每日上限 ? '｜每日限 ' + p.每日上限 : '') + (p.給予資產 ? '｜道具 ' + 跳脫(p.給予資產) : '') + '</div></div>' +
       '<button class="鈕" onclick="商編輯(\'' + p.編號 + '\')">編輯</button>' +
       '<button class="鈕" onclick="商動(\'切換\',\'' + p.編號 + '\')">' + (p.狀態 === '上架' ? '下架' : '上架') + '</button>' +
       '<button class="鈕 紅鈕" onclick="商動(\'刪除\',\'' + p.編號 + '\',\'刪除 ' + 跳脫(p.名稱) + '？\')">刪除</button></div>';
@@ -513,7 +513,7 @@ function 畫商品() {
       if (r.狀態 === '待兌換') 操 = '<button class="鈕 主鈕" onclick="商動(\'兌換\',null,null,\'' + 跳脫(r.單號) + '\')">兌換</button>';
       if (r.狀態 !== '退款') 操 += '<button class="鈕 紅鈕" onclick="商動(\'退款\',null,null,\'' + 跳脫(r.單號) + '\')">退款</button>';
       var 徽 = { '待兌換': '<span class="徽 待">◐ 待兌換</span>', '完成': '<span class="徽 進">● 完成</span>', '已兌換': '<span class="徽 進">● 已兌換</span>', '退款': '<span class="徽 危">! 退款</span>' }[r.狀態] || 跳脫(r.狀態);
-      return '<tr><td style="white-space:nowrap">' + 跳脫(r.時間) + '</td><td>' + 跳脫(r.誰) + '</td><td>' + 跳脫(r.商品) + '</td><td>' + 跳脫(r.備註 || '') + '</td><td>' + r.花費 + '</td><td>' + 徽 + '</td><td>' + 操 + '</td></tr>';
+      return '<tr><td style="white-space:nowrap">' + 跳脫(r.時間) + '</td><td>' + 跳脫(r.誰) + '</td><td>' + 跳脫(r.商品) + '</td><td>' + 跳脫(r.備註 || '') + (r.券碼 ? (r.備註 ? '｜' : '') + '🎫 ' + 跳脫(r.券碼) : '') + '</td><td>' + r.花費 + '</td><td>' + 徽 + '</td><td>' + 操 + '</td></tr>';
     }).join('') : '<tr><td colspan="7" class="空">沒有訂單</td></tr>') + '</table></div>';
   return h;
 }
