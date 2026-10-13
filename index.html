@@ -162,7 +162,7 @@ function 呼叫(函式, 參數, 成功, 失敗, 重試, 不快取) {
     .catch(function (e) { clearTimeout(計); (失敗 || 錯)(e.name === 'AbortError' ? '連線逾時，請重試' : (e.message || '連線失敗')); });
 }
 
-var 前端版本 = '2.0.53';
+var 前端版本 = '2.0.55';
 function 套資料(d) {
   D = d; $('組織').textContent = d.組織 + '｜管理面板';
   $('我').textContent = '登入：' + d.我 + (d.身分 && d.身分 !== '管理員' ? '（' + d.身分 + '）' : '');
@@ -600,7 +600,7 @@ function 畫搶區() {
       '<input type="checkbox" style="width:auto" ' + (搶勾[t.編號] ? 'checked ' : '') + ' onclick="搶勾選(' + t.編號 + ', this.checked)"></div>';
   }).join('') : '<div class="空">目前沒有可開放的任務</div>';
   h += '<label>方式</label><select id="搶模"><option value="抽籤">抽籤</option><option value="先搶先贏">先搶先贏</option></select>' +
-    '<label>報名秒數（至少 120 秒）</label><input id="搶秒" type="number" inputmode="numeric" value="120">' +
+    '<label>報名秒數（至少 15 秒）</label><input id="搶秒" type="number" inputmode="numeric" value="30">' +
     '<div class="鈕列"><button class="鈕 主鈕" onclick="送搶開(this)">開放一輪</button></div>' +
     '<div class="副">開放後會公告到群組；時間到自動開獎。</div></div>';
   return h;
@@ -610,6 +610,7 @@ function 送搶開(b) {
   var 選 = Object.keys(搶勾).filter(function (k) { return 搶勾[k]; });
   if (!選.length) return 提示('請先勾選任務');
   var 秒 = Number($('搶秒').value), 模 = $('搶模').value;
+  if (!(秒 >= 15)) return 提示('報名秒數至少 15 秒');
   if (!confirm('開放一輪搶任務（' + 模 + '，' + 秒 + ' 秒）？會公告到群組。')) return;
   b.disabled = true; b.textContent = '開放中…';
   呼叫('面板_搶開', [{ 任務: 選, 秒: 秒, 模式: 模 }], function (x) { 搶勾 = {}; 重載('✅ ' + x); }, function (e) { b.disabled = false; b.textContent = '開放一輪'; });
