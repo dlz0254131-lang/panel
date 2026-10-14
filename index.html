@@ -162,7 +162,7 @@ function 呼叫(函式, 參數, 成功, 失敗, 重試, 不快取) {
     .catch(function (e) { clearTimeout(計); (失敗 || 錯)(e.name === 'AbortError' ? '連線逾時，請重試' : (e.message || '連線失敗')); });
 }
 
-var 前端版本 = '2.0.55';
+var 前端版本 = '2.0.56';
 function 套資料(d) {
   D = d; $('組織').textContent = d.組織 + '｜管理面板';
   $('我').textContent = '登入：' + d.我 + (d.身分 && d.身分 !== '管理員' ? '（' + d.身分 + '）' : '');
