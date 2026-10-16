@@ -102,6 +102,7 @@
 <aside class="側"><div class="側內">
 <span class="logo"><img src="logo_horizontal.png" alt="任務點 MISSION POINTS"></span>
 <h1 id="組織">管理面板</h1><small id="我"></small>
+<button id="同步鈕" class="鈕" onclick="立即同步()" style="margin:var(--s2) 0" title="重新推一份最新資料，解掉資料看起來沒更新">🔄 立即同步</button>
 <nav id="分頁">
   <button data-頁="總覽" class="on">總覽</button>
   <button data-頁="成員">成員</button>
@@ -142,7 +143,7 @@ function 提示(s) { var e = $('提示'); e.textContent = s; e.classList.add('�
 
 /* fetch 呼叫：credentials:'omit' 不帶 Google cookie，避開多帳號登入被擋 */
 var 對照 = { 面板_資料: 'data', 面板_改設定: 'setting', 面板_調點: 'points', 面板_成員: 'member', 面板_任務: 'task', 面板_統計: 'stats', 面板_批次: 'batch', 面板_權限: 'perms', 面板_改權限: 'setperm', 面板_設主: 'setmaster', 面板_體檢: 'health', 面板_池儲值: 'pool',
-  面板_商店: 'shop', 面板_公告: 'announce', 面板_匯出: 'export', 面板_邀請: 'invite', 面板_系統: 'sys', 面板_週期: 'cycle', 面板_搶開: 'grab' };
+  面板_商店: 'shop', 面板_公告: 'announce', 面板_匯出: 'export', 面板_邀請: 'invite', 面板_系統: 'sys', 面板_週期: 'cycle', 面板_搶開: 'grab', 面板_同步: 'sync' };
 var 最後網址 = '';
 /* 只有「讀取」可以自動重試；寫入絕不自動重送（避免同一筆被記兩次）。寫入靠後端冪等編號防重。 */
 var 只讀 = { 面板_資料: 1, 面板_統計: 1, 面板_權限: 1, 面板_體檢: 1 };
@@ -162,7 +163,7 @@ function 呼叫(函式, 參數, 成功, 失敗, 重試, 不快取) {
     .catch(function (e) { clearTimeout(計); (失敗 || 錯)(e.name === 'AbortError' ? '連線逾時，請重試' : (e.message || '連線失敗')); });
 }
 
-var 前端版本 = '2.0.57';
+var 前端版本 = '2.0.58';
 function 套資料(d) {
   D = d; $('組織').textContent = d.組織 + '｜管理面板';
   $('我').textContent = '登入：' + d.我 + (d.身分 && d.身分 !== '管理員' ? '（' + d.身分 + '）' : '');
@@ -182,6 +183,13 @@ function 載入(失敗, 不用快取) {
     try { sessionStorage.removeItem('v重載'); } catch (e) {}
     存快取(d); 套資料(d);
   }, 失敗, false, 不用快取);
+}
+
+/* 立即同步：請後端重推一份最新快照到邊緣，再重新載入（資料看起來沒更新時的保險鈕） */
+function 立即同步() {
+  var b = $('同步鈕'); if (b) { b.disabled = true; b.textContent = '同步中…'; }
+  function 復原() { if (b) { b.disabled = false; b.textContent = '🔄 立即同步'; } }
+  呼叫('面板_同步', [], function (x) { 提示('✅ ' + x); 復原(); 載入(); }, function (e) { 提示('❌ ' + e); 復原(); });
 }
 
 function 有(k) { return !D || !D.權限 || D.權限.indexOf(k) >= 0; }
